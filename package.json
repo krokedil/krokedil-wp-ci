@@ -1,0 +1,14 @@
+{
+  "name": "krokedil-wp-ci",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reusable CI workflows and actions for Krokedil WordPress/WooCommerce plugins",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "lint": "echo 'No lint setup yet'"
+  },
+  "devDependencies": {
+    "jq": "0.0.1-security"
+  }
+}

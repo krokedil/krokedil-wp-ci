@@ -1,0 +1,23 @@
+name: Get Plugin Meta
+on:
+  workflow_call:
+    outputs:
+      plugin_slug:
+        description: 'Plugin slug from plugin-meta.json'
+        value: ${{ jobs.meta.outputs.plugin_slug }}
+      plugin_meta_json:
+        description: 'Full plugin-meta.json content (compact JSON)'
+        value: ${{ jobs.meta.outputs.plugin_meta_json }}
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      plugin_slug: ${{ steps.read.outputs.plugin_slug }}
+      plugin_meta_json: ${{ steps.read.outputs.plugin_meta_json }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Read plugin-meta.json
+        id: read
+        run: bash scripts/get-plugin-meta.sh

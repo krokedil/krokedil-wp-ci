@@ -1,0 +1,51 @@
+name: Reusable Deploy InstaWP
+on:
+  workflow_call:
+    inputs:
+      plugin_meta_json:
+        required: true
+        type: string
+      zip_file_name:
+        required: true
+        type: string
+      aws_s3_public_url:
+        required: false
+        type: string
+      instawp_api_token:
+        required: true
+        type: string
+      e2e_api_key:
+        required: false
+        type: string
+      e2e_api_secret:
+        required: false
+        type: string
+    outputs:
+      instawp_site_id:
+        value: ${{ jobs.deploy.outputs.instawp_site_id }}
+      instawp_site_url:
+        value: ${{ jobs.deploy.outputs.instawp_site_url }}
+      instawp_site_created:
+        value: ${{ jobs.deploy.outputs.instawp_site_created }}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      instawp_site_id: ${{ steps.deploy.outputs.site_id }}
+      instawp_site_url: ${{ steps.deploy.outputs.site_url }}
+      instawp_site_created: ${{ steps.deploy.outputs.site_created }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Deploy to InstaWP
+        id: deploy
+        run: |
+          bash scripts/instawp-deploy.sh \
+            '${{ inputs.plugin_meta_json }}' \
+            '${{ inputs.zip_file_name }}' \
+            '${{ inputs.aws_s3_public_url }}' \
+            '${{ inputs.instawp_api_token }}' \
+            '${{ inputs.e2e_api_key }}' \
+            '${{ inputs.e2e_api_secret }}'
