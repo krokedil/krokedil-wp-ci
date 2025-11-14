@@ -1,0 +1,13 @@
+name: Create plugin dev zip
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_zip:
+    uses: krokedil/krokedil-wp-ci/.github/workflows/create-plugin-dev-zip.yml@v1
+    with:
+      aws_upload: true
+    secrets:
+      AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP }}
+      AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP }}
