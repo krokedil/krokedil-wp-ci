@@ -1,0 +1,109 @@
+name: Deploy Plugin Dev Zip to InstaWP
+on:
+  workflow_call:
+    inputs:
+      instawp_url:
+        required: false
+        type: string
+        default: ''
+        description: 'InstaWP site URL to deploy to (e.g. qliro-sandbox.krokedil.site).'
+    secrets:
+      AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP:
+        required: true
+      AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP:
+        required: true
+      INSTAWP_API_TOKEN:
+        required: true
+      E2E_API_KEY:
+        required: false
+      E2E_API_SECRET:
+        required: false
+    outputs:
+      instawp_site_id:
+        description: 'InstaWP site ID for the site where the plugin was deployed.'
+        value: ${{ jobs.deploy_plugin_dev_zip_instawp.outputs.instawp_site_id }}
+      instawp_site_url:
+        description: 'InstaWP site URL for the site where the plugin was deployed.'
+        value: ${{ jobs.deploy_plugin_dev_zip_instawp.outputs.instawp_site_url }}
+      instawp_site_created:
+        description: 'Indicates if the InstaWP site was created during deployment.'
+        value: ${{ jobs.deploy_plugin_dev_zip_instawp.outputs.instawp_site_created }}
+jobs:
+  deploy_plugin_dev_zip_instawp:
+    runs-on: ubuntu-latest
+    outputs:
+      instawp_site_id: ${{ steps.deploy_instawp.outputs.site_id }}
+      instawp_site_url: ${{ steps.deploy_instawp.outputs.site_url }}
+      instawp_site_created: ${{ steps.deploy_instawp.outputs.site_created }}
+    steps:
+      - name: Checkout plugin repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout CI helpers
+        uses: actions/checkout@v4
+        with:
+          repository: krokedil/krokedil-wp-ci
+          path: .github/krokedil-wp-ci
+          fetch-depth: 1
+
+      - name: Get plugin meta
+        id: meta
+        run: bash .github/krokedil-wp-ci/scripts/get-plugin-meta.sh
+
+      - name: Prepare plugin dev zip
+        id: prepare
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          ZIP_FILE_SUFFIX: '-temp'
+        run: bash .github/krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
+
+      - name: Generate plugin zip and upload as artifact
+        id: generate
+        uses: krokedil/action-wordpress-plugin-build-zip@krokedil-improvements
+        env:
+          SLUG: ${{ steps.meta.outputs.plugin_slug }}
+        with:
+          upload-plugin-artifact: true
+          retention-days: 1
+          artifact-name: ${{ steps.prepare.outputs.zip_file_name }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP }}
+          aws-region: eu-north-1
+
+      - name: Upload to S3
+        id: upload
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          ZIP_FILE_NAME: ${{ steps.prepare.outputs.zip_file_name }}
+          ZIP_FILE_PATH: ${{ steps.generate.outputs.zipfile-path }}
+        run: bash .github/krokedil-wp-ci/scripts/upload-zip-aws-s3.sh
+
+      - name: Deploy dev zip to existing InstaWP site or create a new one
+        id: deploy_instawp
+        env:
+          INSTA_WP_URL: ${{ github.event.inputs.instawp_url }}
+          INSTAWP_API_TOKEN: ${{ secrets.INSTAWP_API_TOKEN }}
+          E2E_API_KEY: ${{ secrets.E2E_API_KEY }}
+          E2E_API_SECRET: ${{ secrets.E2E_API_SECRET }}
+          AWS_S3_PUBLIC_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
+          PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
+        run: |
+          node .github/krokedil-wp-ci/scripts/deploy-instawp.js
+
+      - name: Delete zip from S3
+        run: |
+          aws s3 rm s3://krokedil-plugin-dev-zip/${{ steps.prepare.outputs.zip_file_name }}.zip
+
+      - name: Add InstaWP deploy job summary
+        env:
+          INSTAWP_SITE_URL: ${{ steps.deploy_instawp.outputs.instawp_site_url }}
+          INSTAWP_SITE_ID: ${{ steps.deploy_instawp.outputs.instawp_site_id }}
+          INSTAWP_SITE_CREATED: ${{ steps.deploy_instawp.outputs.instawp_site_created }}
+        run: |
+          node .github/krokedil-wp-ci/scripts/job-summary-deploy-plugin-dev-zip-instawp.js
