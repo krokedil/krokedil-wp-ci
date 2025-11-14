@@ -20,13 +20,13 @@ on:
     outputs:
       zip_file_name:
         description: Built dev zip base name (without .zip)
-        value: ${{ jobs.build_plugin_dev_zip.outputs.zip_file_name }}
+        value: ${{ jobs.create_plugin_dev_zip.outputs.zip_file_name }}
       aws_s3_public_url:
         description: Public S3 URL (only valid if aws_upload was true)
-        value: ${{ jobs.build_plugin_dev_zip.outputs.aws_s3_public_url }}
+        value: ${{ jobs.create_plugin_dev_zip.outputs.aws_s3_public_url }}
 
 jobs:
-  build_plugin_dev_zip:
+  create_plugin_dev_zip:
     runs-on: ubuntu-latest
     outputs:
       zip_file_name: ${{ steps.prepare.outputs.zip_file_name }}
