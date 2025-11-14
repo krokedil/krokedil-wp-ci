@@ -22,7 +22,7 @@ if [ -z "$ZIP_FILE_PATH" ]; then
   exit 1
 fi
 
-cd $(dirname "$ZIP_FILE_PATH")
+cd "$ZIP_FILE_PATH"
 zip -r "../${ZIP_FILE_NAME}.zip" "${PLUGIN_SLUG}"
 aws s3 cp "../${ZIP_FILE_NAME}.zip" "s3://krokedil-plugin-dev-zip/${ZIP_FILE_NAME}.zip"
 echo "aws_s3_public_url=https://krokedil-plugin-dev-zip.s3.eu-north-1.amazonaws.com/${ZIP_FILE_NAME}.zip" >> $GITHUB_OUTPUT
