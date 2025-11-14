@@ -15,9 +15,18 @@ jobs:
       plugin_slug: ${{ steps.read.outputs.plugin_slug }}
       plugin_meta_json: ${{ steps.read.outputs.plugin_meta_json }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout plugin repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Checkout CI helpers
+        uses: actions/checkout@v4
+        with:
+          repository: krokedil/krokedil-wp-ci
+          path: krokedil-wp-ci
+          fetch-depth: 1
+
       - name: Read plugin-meta.json
         id: read
-        run: bash scripts/get-plugin-meta.sh
+        run: bash krokedil-wp-ci/scripts/get-plugin-meta.sh

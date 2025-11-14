@@ -32,21 +32,28 @@ jobs:
       zip_file_name: ${{ steps.prepare.outputs.zip_file_name }}
       aws_s3_public_url: ${{ steps.upload.outputs.aws_s3_public_url }}
     steps:
-      - name: Checkout
+      - name: Checkout plugin repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      - name: Checkout CI helpers
+        uses: actions/checkout@v4
+        with:
+          repository: krokedil/krokedil-wp-ci
+          path: krokedil-wp-ci
+          fetch-depth: 1
+
       - name: Get plugin meta
         id: meta
-        run: bash scripts/get-plugin-meta.sh
+        run: bash krokedil-wp-ci/scripts/get-plugin-meta.sh
 
       - name: Prepare plugin dev zip
         id: prepare
         env:
           PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
           ZIP_FILE_SUFFIX: ${{ inputs.zip_file_suffix }}
-        run: bash scripts/prepare-plugin-dev-zip.sh
+        run: bash krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
 
       - name: Generate plugin zip and upload as artifact
         id: generate
@@ -73,7 +80,7 @@ jobs:
           PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
           ZIP_FILE_NAME: ${{ steps.prepare.outputs.zip_file_name }}
           ZIP_FILE_PATH: ${{ steps.generate.outputs.zipfile-path }}
-        run: bash scripts/upload-zip-aws-s3.sh
+        run: bash krokedil-wp-ci/scripts/upload-zip-aws-s3.sh
 
       - name: Create job summary
         id: summary
@@ -81,4 +88,4 @@ jobs:
           PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
           ZIP_FILE_NAME: ${{ steps.prepare.outputs.zip_file_name }}
           AWS_S3_PUBLIC_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
-        run: node scripts/job-summary-create-plugin-dev-zip.js
+        run: node krokedil-wp-ci/scripts/job-summary-create-plugin-dev-zip.js
