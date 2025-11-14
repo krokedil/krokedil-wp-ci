@@ -35,14 +35,23 @@ jobs:
       instawp_site_url: ${{ steps.deploy.outputs.site_url }}
       instawp_site_created: ${{ steps.deploy.outputs.site_created }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout plugin repository
+        uses: actions/checkout@v4
+
+      - name: Checkout CI helpers
+        uses: actions/checkout@v4
+        with:
+          repository: krokedil/krokedil-wp-ci
+          path: .github/krokedil-wp-ci
+          fetch-depth: 1
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - name: Deploy to InstaWP
         id: deploy
         run: |
-          bash scripts/instawp-deploy.sh \
+          bash .github/krokedil-wp-ci/scripts/instawp-deploy.sh \
             '${{ inputs.plugin_meta_json }}' \
             '${{ inputs.zip_file_name }}' \
             '${{ inputs.aws_s3_public_url }}' \

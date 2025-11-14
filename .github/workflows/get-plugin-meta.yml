@@ -24,9 +24,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: krokedil/krokedil-wp-ci
-          path: krokedil-wp-ci
+          path: .github/krokedil-wp-ci
           fetch-depth: 1
 
       - name: Read plugin-meta.json
         id: read
-        run: bash krokedil-wp-ci/scripts/get-plugin-meta.sh
+        run: bash .github/krokedil-wp-ci/scripts/get-plugin-meta.sh
