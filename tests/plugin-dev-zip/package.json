@@ -1,0 +1,22 @@
+{
+  "name": "@krokedil/plugin-dev-zip-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared integration and e2e tests for Krokedil plugin dev zips using WordPress Playground, Vitest and Playwright.",
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:integration",
+    "test:integration": "vitest run",
+    "test:integration:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "playground": "wp-playground",
+    "playground:help": "wp-playground --help"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@wp-playground/cli": "^0.10.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}

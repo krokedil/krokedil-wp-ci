@@ -82,6 +82,22 @@ jobs:
           ZIP_FILE_PATH: ${{ steps.generate.outputs.zipfile-path }}
         run: bash .github/krokedil-wp-ci/scripts/upload-zip-aws-s3.sh
 
+      - name: Run shared integration tests (Vitest)
+        working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
+        env:
+          DEV_ZIP_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
+        run: |
+          npm ci
+          npm test
+
+      - name: Run shared e2e tests (Playwright)
+        working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
+        env:
+          E2E_BASE_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
+        run: |
+          npx playwright install --with-deps
+          npm run test:e2e
+
       - name: Create job summary
         id: summary
         env:
