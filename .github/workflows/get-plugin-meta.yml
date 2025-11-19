@@ -5,6 +5,9 @@ on:
       plugin_slug:
         description: 'Plugin slug from plugin-meta.json'
         value: ${{ jobs.meta.outputs.plugin_slug }}
+      distribution_platform:
+        description: 'Distribution platform from plugin-meta.json'
+        value: ${{ jobs.meta.outputs.distribution_platform }}
       plugin_meta_json:
         description: 'Full plugin-meta.json content (compact JSON)'
         value: ${{ jobs.meta.outputs.plugin_meta_json }}
@@ -13,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       plugin_slug: ${{ steps.read.outputs.plugin_slug }}
+      distribution_platform: ${{ steps.read.outputs.distribution_platform }}
       plugin_meta_json: ${{ steps.read.outputs.plugin_meta_json }}
     steps:
       - name: Checkout plugin repository
