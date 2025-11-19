@@ -17,11 +17,11 @@ if [ -z "$slug" ]; then
   exit 1
 fi
 
-distribution_platform=$(jq -r '.distribution-platform // missing' "$FILE")
+distribution_platform=$(jq -r '.["distribution-platform"] // empty' "$FILE")
 if [ -z "$distribution_platform" ]; then
-  echo "::warning::Missing 'distribution-platform' in .github/plugin-meta.json; defaulting to 'wordpress-org'" >&2
-  distribution_platform=""
+  echo "::warning::Missing 'distribution-platform' in .github/plugin-meta.json; proceeding without distribution-specific behavior" >&2
 fi
+
 meta=$(jq -c '.' "$FILE")
 
 echo "plugin_slug=$slug" >> "$GITHUB_OUTPUT"
