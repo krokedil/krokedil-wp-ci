@@ -11,9 +11,6 @@ fi
 # Set DISTRIBUTION_PLATFORM from env (set by get-plugin-meta.sh step). Default to empty
 # and continue, but log a warning if it's missing so callers can notice.
 DISTRIBUTION_PLATFORM="${DISTRIBUTION_PLATFORM:-}"
-if [ -z "$DISTRIBUTION_PLATFORM" ]; then
-  echo "::warning::DISTRIBUTION_PLATFORM env not set; proceeding without distribution-specific behavior" >&2
-fi
 
 # Optional ZIP suffix from env; empty if not provided.
 ZIP_FILE_SUFFIX="${ZIP_FILE_SUFFIX:-}"

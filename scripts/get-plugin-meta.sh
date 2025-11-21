@@ -19,7 +19,7 @@ fi
 
 distribution_platform=$(jq -r '.["distribution-platform"] // empty' "$FILE")
 if [ -z "$distribution_platform" ]; then
-  echo "::warning::Missing 'distribution-platform' in .github/plugin-meta.json; proceeding without distribution-specific behavior" >&2
+  echo "::warning::Missing 'distribution-platform' in .github/plugin-meta.json" >&2
 fi
 
 meta=$(jq -c '.' "$FILE")

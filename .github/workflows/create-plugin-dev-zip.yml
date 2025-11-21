@@ -56,7 +56,7 @@ jobs:
           ZIP_FILE_SUFFIX: ${{ inputs.zip_file_suffix }}
         run: bash .github/krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
 
-      - name: Generate plugin zip and upload as artifact
+      - name: Generate plugin zip and upload as artifact (WordPress.org)
         id: generate-wp-org
         if: steps.meta.outputs.distribution_platform == 'wordpress-org'
         uses: krokedil/action-wordpress-plugin-build-zip@krokedil-improvements
@@ -67,8 +67,8 @@ jobs:
           retention-days: 1
           artifact-name: ${{ steps.prepare.outputs.zip_file_name }}
 
-      - name: Generate plugin zip (non-WordPress.org)
-        id: generate-non-wp-org
+      - name: Upload prepared plugin as artifact (non-WordPress.org)
+        id: upload-non-wp-org
         if: steps.meta.outputs.distribution_platform != 'wordpress-org'
         uses: actions/upload-artifact@v4
         with:
