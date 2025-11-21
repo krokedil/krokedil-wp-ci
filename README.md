@@ -61,6 +61,15 @@ The `create-plugin-dev-zip.yml` workflow encapsulates the common flow for buildi
 
 This workflow is intended to be called from a plugin repository. See `examples/basic-dev-zip/` for a minimal usage example.
 
+### Building the plugin
+
+When preparing the dev zip, `scripts/prepare-plugin-dev-zip.sh` will automatically look for common production build scripts in your plugin and run them if they exist:
+
+- If your plugin has an `npm` script named `build:prod`, it will run `npm run build:prod`.
+- Otherwise, if there is an `npm` script named `build-prod`, it will run `npm run build-prod`.
+
+If neither script is present, the workflow skips the build step and just packages the current working tree. This lets each plugin opt in to its own build process while keeping the CI configuration shared.
+
 ## InstaWP deployment
 
 The `deploy-plugin-dev-zip-instawp.yml` workflow deploys a dev zip to InstaWP. It uses Node scripts under `scripts/` (such as `deploy-instawp.js` and `job-summary-deploy-plugin-dev-zip-instawp.js`) to:
