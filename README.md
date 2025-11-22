@@ -72,12 +72,23 @@ If neither script is present, the workflow skips the build step and just package
 
 ## InstaWP deployment
 
-The `deploy-plugin-dev-zip-instawp.yml` workflow deploys a dev zip to InstaWP. It uses Node scripts under `scripts/` (such as `deploy-instawp.js` and `job-summary-deploy-plugin-dev-zip-instawp.js`) to:
+The `deploy-plugin-dev-zip-instawp.yml` workflow deploys a dev zip to InstaWP. It uses Node scripts under `scripts/` (such as `deploy-instawp.js` and `job-summary-deploy-plugin-dev-zip-instawp.js`) and takes an `instawp_url` input which controls where the dev build is deployed.
 
-- Trigger a deployment using an existing dev zip URL.
-- Report status and key links in a job summary.
+### `instawp_url` behaviour
+
+- **Existing InstaWP site**: If `instawp_url` points to an InstaWP site that already exists, the workflow will only send the new dev zip to that site. The environment stays the same; only the plugin build is updated.
+- **New InstaWP site**: If `instawp_url` does not match an existing site, a new InstaWP site is created and configured using metadata from your `.github/plugin-meta.json` file.
 
 See `examples/basic-deploy-instawp/` for a minimal usage example.
+
+### InstaWP-related metadata
+
+When creating a new site, the workflow reads InstaWP-related settings from `.github/plugin-meta.json`:
+
+- `instawp.plugin_wc_blueprint_url` (optional): Is an URL to a Woocommerce blueprint with plugin specific settings that you want to be applied to a new site.
+- `instawp.plugin_credentials_option_patches` (optional): Are an array of plugin credentials that you want to be applied to a new site. Make sure that you also pass the secrets that you want to use as values in to the github workflow.
+- `instawp.payment_gateway_id` (optional): If the plugin is a payment plugin, add the Woocommerce payment gateway id here and it will be used to set this payment gateway as the defualt one on the new site.
+- `instawp.use_checkout_block` (optional): If the plugin is a payment plugin, define if the checkout should use the checkout block (set it to true), or if it instead should use the checkout shortcode (set it to false).
 
 ## Helper scripts
 
@@ -99,6 +110,7 @@ The `examples/` folder contains minimal plugin-side GitHub Actions configuration
 - `examples/basic-plugin-meta-json/` – minimal example of a `.github/plugin-meta.json` file.
 - `examples/basic-dev-zip/` – minimal workflow that calls `create-plugin-dev-zip.yml` to build a dev zip.
 - `examples/basic-deploy-instawp/` – minimal workflow that deploys a dev zip to InstaWP using `deploy-plugin-dev-zip-instawp.yml`.
+- `examples/wordpress-org-deploy/` – minimal workflow that deploys a plugin to WordPress.org using the appropriate reusable workflow.
 
 Use these as starting points when wiring new plugin repositories to this CI.
 
