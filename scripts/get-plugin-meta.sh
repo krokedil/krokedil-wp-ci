@@ -13,10 +13,17 @@ fi
 
 slug=$(jq -r '.slug // empty' "$FILE")
 if [ -z "$slug" ]; then
-  echo "::error::Missing slug in $FILE" >&2
+  echo "::error::Missing 'slug' in .github/plugin-meta.json" >&2
   exit 1
 fi
+
+distribution_platform=$(jq -r '.["distribution-platform"] // empty' "$FILE")
+if [ -z "$distribution_platform" ]; then
+  echo "::warning::Missing 'distribution-platform' in .github/plugin-meta.json" >&2
+fi
+
 meta=$(jq -c '.' "$FILE")
 
 echo "plugin_slug=$slug" >> "$GITHUB_OUTPUT"
+echo "distribution_platform=$distribution_platform" >> "$GITHUB_OUTPUT"
 echo "plugin_meta_json=$meta" >> "$GITHUB_OUTPUT"

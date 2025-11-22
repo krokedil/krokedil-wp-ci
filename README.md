@@ -1,105 +1,125 @@
-# Krokedil WP CI
+# Krokedil WordPress CI
 
-Reusable GitHub Actions reusable workflows for WordPress / WooCommerce plugin metadata, dev build zipping (optional S3 upload) and InstaWP deployment.
+Reusable GitHub Actions workflows and helper scripts for Krokedil WordPress/WooCommerce plugins.
 
-## Reusable Workflows
+This repository is meant to be checked out inside plugin repositories and used via `uses:` from GitHub Actions. It centralizes common CI tasks like building dev zips, running shared tests, and deploying to InstaWP.
 
-| Workflow | Purpose | Key Inputs | Key Outputs |
-|----------|---------|------------|-------------|
-| `get-plugin-meta.yml` | Read `.github/plugin-meta.json` to expose slug + JSON | (none) | `plugin_slug`, `plugin_meta_json` |
-| `build-dev-zip.yml` | Create deterministic dev zip (+ optional S3 upload & playground summary) | `plugin_slug`, `aws_upload`, `zip_file_suffix`, `aws_region`, `plugin_meta_json?` | `zip_file_name`, `aws_s3_public_url`, `playground_minimal_url?` |
-| `deploy-instawp.yml` | Simulate / perform InstaWP deployment using meta + zip | `plugin_meta_json`, `zip_file_name`, `instawp_api_token` (+ optional) | `instawp_site_id`, `instawp_site_url`, `instawp_site_created` |
+## Contents
 
-All implementation logic lives in scripts under `scripts/` for a DRY codebase.
+- Reusable workflows under `.github/workflows/`
+- Helper scripts under `scripts/`
+- Example plugin workflows under `examples/`
 
-## Consumer Usage Example
+## Reusable workflows
+
+The main entry points you will use from plugin repositories are:
+
+- `get-plugin-meta.yml` – reads `.github/plugin-meta.json` in your plugin repo and exposes it as reusable outputs (e.g. `plugin_slug`, `distribution_platform`, `plugin_meta_json`).
+- `create-plugin-dev-zip.yml` – builds a dev zip of your plugin, optionally uploads it to AWS S3, and writes a job summary including a WordPress Playground link when configured.
+- `deploy-plugin-dev-zip-instawp.yml` – deploys a previously-built dev zip to InstaWP and adds a job summary.
+
+Each workflow is declared with `on: workflow_call` so it can be used from other repositories via `uses:`.
+
+## Plugin metadata
+
+Each plugin repository that uses these workflows should define a `.github/plugin-meta.json` file. This is the single source of truth for plugin-specific metadata.
+
+Minimal example (see `examples/basic-plugin-meta-json/.github/plugin-meta.json` for a complete version):
+
+```json
+{
+  "slug": "my-plugin-slug",
+  "distribution-platform": "wordpress-org",
+  "playground": {
+    "plugins": ["my-plugin-slug"],
+    "preferredVersions": {
+      "php": "8.2",
+      "wp": "latest"
+    }
+  }
+}
+```
+
+Key fields:
+
+- `slug` (required): The plugin directory/slug. Used when naming zips and building paths.
+- `distribution-platform` (optional but recommended): Controls how the dev zip is prepared. Typical values:
+  - `wordpress-org` – build using the WordPress.org-compatible flow.
+  - Other values (e.g. `kernl`) – use a manual rsync-based packaging flow with `.distignore` / `.kernlignore` support.
+- `playground` (optional): Used to generate a WordPress Playground blueprint URL in job summaries.
+
+The shell script `scripts/get-plugin-meta.sh` is responsible for reading this file and exposing outputs to the workflows.
+
+## Dev zip creation
+
+The `create-plugin-dev-zip.yml` workflow encapsulates the common flow for building a dev zip of a plugin. At a high level it:
+
+1. Reads `.github/plugin-meta.json` using `scripts/get-plugin-meta.sh`.
+2. Prepares the dev zip contents using `scripts/prepare-plugin-dev-zip.sh` (builds assets, selects ignore file, etc.).
+3. Optionally zips and uploads the artifact to AWS S3 using `scripts/upload-zip-aws-s3.sh`.
+4. Writes a GitHub job summary with details and an optional WordPress Playground link.
+
+This workflow is intended to be called from a plugin repository. See `examples/basic-dev-zip/` for a minimal usage example.
+
+### Building the plugin
+
+When preparing the dev zip, `scripts/prepare-plugin-dev-zip.sh` will automatically look for common production build scripts in your plugin and run them if they exist:
+
+- If your plugin has an `npm` script named `build:prod`, it will run `npm run build:prod`.
+- Otherwise, if there is an `npm` script named `build-prod`, it will run `npm run build-prod`.
+
+If neither script is present, the workflow skips the build step and just packages the current working tree. This lets each plugin opt in to its own build process while keeping the CI configuration shared.
+
+## InstaWP deployment
+
+The `deploy-plugin-dev-zip-instawp.yml` workflow deploys a dev zip to InstaWP. It uses Node scripts under `scripts/` (such as `deploy-instawp.js` and `job-summary-deploy-plugin-dev-zip-instawp.js`) and takes an `instawp_url` input which controls where the dev build is deployed.
+
+### `instawp_url` behaviour
+
+- **Existing InstaWP site**: If `instawp_url` points to an InstaWP site that already exists, the workflow will only send the new dev zip to that site. The environment stays the same; only the plugin build is updated.
+- **New InstaWP site**: If `instawp_url` does not match an existing site, a new InstaWP site is created and configured using metadata from your `.github/plugin-meta.json` file.
+
+See `examples/basic-deploy-instawp/` for a minimal usage example.
+
+### InstaWP-related metadata
+
+When creating a new site, the workflow reads InstaWP-related settings from `.github/plugin-meta.json`:
+
+- `instawp.plugin_wc_blueprint_url` (optional): Is an URL to a Woocommerce blueprint with plugin specific settings that you want to be applied to a new site.
+- `instawp.plugin_credentials_option_patches` (optional): Are an array of plugin credentials that you want to be applied to a new site. Make sure that you also pass the secrets that you want to use as values in to the github workflow.
+- `instawp.payment_gateway_id` (optional): If the plugin is a payment plugin, add the Woocommerce payment gateway id here and it will be used to set this payment gateway as the defualt one on the new site.
+- `instawp.use_checkout_block` (optional): If the plugin is a payment plugin, define if the checkout should use the checkout block (set it to true), or if it instead should use the checkout shortcode (set it to false).
+
+## Helper scripts
+
+The `scripts/` directory contains the shared shell and Node utilities used by the workflows. Notable scripts include:
+
+- `scripts/get-plugin-meta.sh` – parses `.github/plugin-meta.json`, validates required fields, and writes outputs (`plugin_slug`, `distribution_platform`, `plugin_meta_json`).
+- `scripts/prepare-plugin-dev-zip.sh` – prepares the dev zip contents based on `PLUGIN_SLUG` and `DISTRIBUTION_PLATFORM`, runs builds if present, and picks the appropriate ignore file (`.distignore` → `.kernlignore` → none).
+- `scripts/upload-zip-aws-s3.sh` – creates the final zip from the prepared directory and uploads it to S3, emitting the public URL.
+- `scripts/deploy-instawp.js` – Node script used to talk to the InstaWP API.
+- `scripts/job-summary-create-plugin-dev-zip.js` – writes a Markdown job summary including the dev zip URL and optional Playground link.
+- `scripts/job-summary-deploy-plugin-dev-zip-instawp.js` – writes a job summary for InstaWP deployments.
+
+These scripts are meant to be invoked from within the reusable workflows, not directly from plugin repos.
+
+## Examples
+
+The `examples/` folder contains minimal plugin-side GitHub Actions configurations that show how to consume these reusable workflows:
+
+- `examples/basic-plugin-meta-json/` – minimal example of a `.github/plugin-meta.json` file.
+- `examples/basic-dev-zip/` – minimal workflow that calls `create-plugin-dev-zip.yml` to build a dev zip.
+- `examples/basic-deploy-instawp/` – minimal workflow that deploys a dev zip to InstaWP using `deploy-plugin-dev-zip-instawp.yml`.
+- `examples/wordpress-org-deploy/` – minimal workflow that deploys a plugin to WordPress.org using the appropriate reusable workflow.
+
+Use these as starting points when wiring new plugin repositories to this CI.
+
+## Versioning and usage
+
+These workflows are designed to be consumed from other repositories using a fixed tag, for example:
 
 ```yaml
-name: Plugin Dev Pipeline
-on: [push]
-jobs:
-  meta:
-    uses: krokedil/krokedil-wp-ci/.github/workflows/get-plugin-meta.yml@v1
-
-  build_zip:
-    needs: meta
-    uses: krokedil/krokedil-wp-ci/.github/workflows/build-dev-zip.yml@v1
-    with:
-      plugin_slug: ${{ needs.meta.outputs.plugin_slug }}
-      aws_upload: true
-      zip_file_suffix: -test
-    secrets:
-      AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP }}
-      AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP }}
-
-  deploy_instawp:
-    needs: [meta, build_zip]
-    uses: krokedil/krokedil-wp-ci/.github/workflows/deploy-instawp.yml@v1
-    with:
-      plugin_meta_json: ${{ needs.meta.outputs.plugin_meta_json }}
-      zip_file_name: ${{ needs.build_zip.outputs.zip_file_name }}
-      aws_s3_public_url: ${{ needs.build_zip.outputs.aws_s3_public_url }}
-      instawp_api_token: ${{ secrets.INSTAWP_API_TOKEN }}
-
-  summary:
-    runs-on: ubuntu-latest
-    needs: deploy_instawp
-    steps:
-      - run: |
-          echo "Zip: ${{ needs.build_zip.outputs.zip_file_name }}"
-          echo "Site: ${{ needs.deploy_instawp.outputs.instawp_site_url }}"
+uses: krokedil/krokedil-wp-ci/.github/workflows/create-plugin-dev-zip.yml@v1
 ```
 
-## Outputs Reference
-
-| Workflow | Output | Description |
-|----------|--------|-------------|
-| get-plugin-meta | plugin_slug | Plugin slug (folder name) |
-| get-plugin-meta | plugin_meta_json | Compact plugin-meta.json content |
-| build-dev-zip | zip_file_name | Dev zip base name (no .zip) |
-| build-dev-zip | aws_s3_public_url | Public S3 object URL (if uploaded) |
-| build-dev-zip | playground_minimal_url | WordPress Playground URL (requires `plugin_meta_json` + S3 upload) |
-### Playground Summary (Optional)
-
-To generate a WordPress Playground test link, pass `plugin_meta_json` (from `get-plugin-meta` workflow) when invoking `build-dev-zip.yml` and enable S3 upload. Example:
-
-```yaml
-  build_zip:
-    needs: meta
-    uses: krokedil/krokedil-wp-ci/.github/workflows/build-dev-zip.yml@v1
-    with:
-      plugin_slug: ${{ needs.meta.outputs.plugin_slug }}
-      aws_upload: true
-      plugin_meta_json: ${{ needs.meta.outputs.plugin_meta_json }}
-    secrets:
-      AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP }}
-      AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP }}
-```
-
-The workflow will add a job summary with a Playground link and expose `playground_minimal_url` as an output.
-| deploy-instawp | instawp_site_id | InstaWP site ID (simulated placeholder) |
-| deploy-instawp | instawp_site_url | InstaWP site URL (simulated placeholder) |
-| deploy-instawp | instawp_site_created | 'true' if new site created |
-
-## Versioning & Tagging
-
-Tag a stable release (e.g. `v1`) after changes:
-
-```bash
-git tag v1
-git push origin v1
-```
-
-Consumers should pin to a tag or commit SHA for reproducibility.
-
-## Development Notes
-
-- Logic consolidated into `scripts/*.sh` and `scripts/deploy-instawp.js`.
-- Removing composite actions reduces duplication; all reuse is at job level.
-- To extend deployment logic, modify `scripts/deploy-instawp.js` (ensure it still writes outputs to `$GITHUB_OUTPUT`).
-
-## Future Enhancements
-
-- Replace simulated InstaWP deployment with real API integration.
-- Add checksum output for the built zip (`zip_sha256`).
-- Add matrix support (PHP / WordPress versions) in a separate workflow.
+When updating this repository, bump or re-tag as appropriate and update plugin repositories to point to the desired version.
