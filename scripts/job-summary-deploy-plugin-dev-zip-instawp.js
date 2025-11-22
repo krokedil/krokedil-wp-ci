@@ -26,26 +26,28 @@
  * ---------------------------------------------------------------------------
  */
 
-const fs = require('fs');
+const fs = require("fs");
 
 // ---------------------------------------------------------------------------
 // Environment extraction & basic presence checks
 // ---------------------------------------------------------------------------
-const summaryFile = process.env.GITHUB_STEP_SUMMARY || '';
-const siteUrl = process.env.INSTAWP_SITE_URL || '';
-const siteId = process.env.INSTAWP_SITE_ID || '';
-const siteCreated = process.env.INSTAWP_SITE_CREATED || '';
-const siteNewOrExisting = siteCreated === 'true' ? 'new' : 'existing';
+const summaryFile = process.env.GITHUB_STEP_SUMMARY || "";
+const siteUrl = process.env.INSTAWP_SITE_URL || "";
+const siteId = process.env.INSTAWP_SITE_ID || "";
+const siteCreated = process.env.INSTAWP_SITE_CREATED || "";
+const siteNewOrExisting = siteCreated === "true" ? "new" : "existing";
 
 if (!siteUrl || !siteId) {
-  console.warn('[summary] Missing INSTAWP_SITE_URL or INSTAWP_SITE_ID; summary will be minimal.');
+  console.warn(
+    "[summary] Missing INSTAWP_SITE_URL or INSTAWP_SITE_ID; summary will be minimal."
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Compose summary markdown.
 // ---------------------------------------------------------------------------
 const lines = [];
-lines.push('# Deploy to InstaWP');
+lines.push("# Deploy to InstaWP");
 
 if (siteUrl && siteId) {
   lines.push(
@@ -54,10 +56,12 @@ if (siteUrl && siteId) {
       `([InstaWP dashboard link](https://app.instawp.io/sites/${siteId}/dashboard?tab=all)).`
   );
 } else {
-  lines.push('Dev zip deployment to InstaWP completed, but site details were not fully available.');
+  lines.push(
+    "Dev zip deployment to InstaWP completed, but site details were not fully available."
+  );
 }
 
-const markdownContent = lines.join('\n') + '\n';
+const markdownContent = lines.join("\n") + "\n";
 
 // ---------------------------------------------------------------------------
 // Write summary (or fallback to stdout if GITHUB_STEP_SUMMARY missing).
@@ -65,11 +69,11 @@ const markdownContent = lines.join('\n') + '\n';
 if (summaryFile) {
   try {
     fs.appendFileSync(summaryFile, markdownContent);
-    console.log('Summary written.');
+    console.log("Summary written.");
   } catch (e) {
-    console.error('Failed writing summary:', e.message);
+    console.error("Failed writing summary:", e.message);
   }
 } else {
-  console.warn('GITHUB_STEP_SUMMARY not set; printing summary to stdout');
+  console.warn("GITHUB_STEP_SUMMARY not set; printing summary to stdout");
   console.log(markdownContent);
 }

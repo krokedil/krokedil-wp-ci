@@ -5,8 +5,8 @@ on:
       instawp_url:
         required: false
         type: string
-        default: ''
-        description: 'InstaWP site URL to deploy to (e.g. qliro-sandbox.krokedil.site).'
+        default: ""
+        description: "InstaWP site URL to deploy to (e.g. qliro-sandbox.krokedil.site)."
     secrets:
       AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP:
         required: true
@@ -20,13 +20,13 @@ on:
         required: false
     outputs:
       instawp_site_id:
-        description: 'InstaWP site ID for the site where the plugin was deployed.'
+        description: "InstaWP site ID for the site where the plugin was deployed."
         value: ${{ jobs.deploy_plugin_dev_zip_instawp.outputs.instawp_site_id }}
       instawp_site_url:
-        description: 'InstaWP site URL for the site where the plugin was deployed.'
+        description: "InstaWP site URL for the site where the plugin was deployed."
         value: ${{ jobs.deploy_plugin_dev_zip_instawp.outputs.instawp_site_url }}
       instawp_site_created:
-        description: 'Indicates if the InstaWP site was created during deployment.'
+        description: "Indicates if the InstaWP site was created during deployment."
         value: ${{ jobs.deploy_plugin_dev_zip_instawp.outputs.instawp_site_created }}
 jobs:
   deploy_plugin_dev_zip_instawp:
@@ -57,7 +57,7 @@ jobs:
         env:
           PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
           DISTRIBUTION_PLATFORM: ${{ steps.meta.outputs.distribution_platform }}
-          ZIP_FILE_SUFFIX: '-temp'
+          ZIP_FILE_SUFFIX: "-temp"
         run: bash .github/krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
 
       - name: Generate plugin zip and upload as artifact

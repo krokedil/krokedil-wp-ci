@@ -47,15 +47,15 @@ fi
 
 # If DISTRIBUTION_PLATFORM is not 'wordpress-org', run the following code
 if [ "$DISTRIBUTION_PLATFORM" != "wordpress-org" ]; then
-  echo DISTRIBUTION_PLATFORM is "$DISTRIBUTION_PLATFORM", preparing zip manually >&2
+  echo DISTRIBUTION_PLATFORM is set as \"$DISTRIBUTION_PLATFORM\". Since it is not "wordpress-org", we will be preparing zip manually >&2
 
   # Determine ignore file strategy: prefer .distignore, then .kernlignore, else no ignore file.
   IGNORE_ARG=()
   if [ -f .distignore ]; then
-    echo "Using .distignore for rsync excludes" >&2
+    echo "Found .distignore, so will be using that for rsync excludes" >&2
     IGNORE_ARG=(--exclude-from='.distignore')
   elif [ -f .kernlignore ]; then
-    echo "Using .kernlignore for rsync excludes" >&2
+    echo "Found .kernlignore, so will be using that for rsync excludes" >&2
     IGNORE_ARG=(--exclude-from='.kernlignore')
   else
     echo "No .distignore or .kernlignore found; rsync will not use an exclude-from file" >&2

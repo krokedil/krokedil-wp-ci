@@ -3,13 +3,13 @@ on:
   workflow_call:
     outputs:
       plugin_slug:
-        description: 'Plugin slug from plugin-meta.json'
+        description: "Plugin slug from plugin-meta.json"
         value: ${{ jobs.meta.outputs.plugin_slug }}
       distribution_platform:
-        description: 'Distribution platform from plugin-meta.json'
+        description: "Distribution platform from plugin-meta.json"
         value: ${{ jobs.meta.outputs.distribution_platform }}
       plugin_meta_json:
-        description: 'Full plugin-meta.json content (compact JSON)'
+        description: "Full plugin-meta.json content (compact JSON)"
         value: ${{ jobs.meta.outputs.plugin_meta_json }}
 jobs:
   meta:
