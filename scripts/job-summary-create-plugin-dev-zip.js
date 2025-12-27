@@ -105,9 +105,19 @@ if (playgroundSupported && AWS_S3_PUBLIC_URL) {
   const blueprintObj = {
     $schema: "https://playground.wordpress.net/blueprint-schema.json",
     preferredVersions,
-    constants: { WP_DEBUG: true },
     steps: [
+      {
+        step: "defineWpConfigConsts",
+        consts: {
+          WP_DEBUG: true,
+          WP_DEBUG_DISPLAY: true,
+        },
+      },
       { step: "resetData" },
+      {
+        step: "wp-cli",
+        command: "wp plugin delete --all",
+      },
       {
         step: "writeFile",
         path: "/wordpress/wp-content/mu-plugins/rewrite.php",
@@ -139,15 +149,15 @@ if (playgroundSupported && AWS_S3_PUBLIC_URL) {
       },
       {
         step: "runPHP",
-        code: "<?php require_once 'wordpress/wp-load.php'; $page = get_page_by_path('refund_returns'); if ($page) { wp_publish_post($page->ID); update_option('woocommerce_terms_page_id', $page->ID); }",
+        code: "<?php require_once '/wordpress/wp-load.php'; $page = get_page_by_path('refund_returns'); if ($page) { wp_publish_post($page->ID); update_option('woocommerce_terms_page_id', $page->ID); }",
       },
       {
         step: "runPHP",
-        code: "<?php require_once 'wordpress/wp-load.php'; $shop_page_id = get_option('woocommerce_shop_page_id'); if ($shop_page_id) { update_option('page_on_front', $shop_page_id); update_option('show_on_front', 'page'); }",
+        code: "<?php require_once '/wordpress/wp-load.php'; $shop_page_id = get_option('woocommerce_shop_page_id'); if ($shop_page_id) { update_option('page_on_front', $shop_page_id); update_option('show_on_front', 'page'); }",
       },
       {
         step: "runPHP",
-        code: "<?php require_once 'wordpress/wp-load.php'; $checkout_page_id = get_option('woocommerce_checkout_page_id'); if ($checkout_page_id) { wp_update_post(['ID' => $checkout_page_id, 'post_content' => '[woocommerce_checkout]']); }",
+        code: "<?php require_once '/wordpress/wp-load.php'; $checkout_page_id = get_option('woocommerce_checkout_page_id'); if ($checkout_page_id) { wp_update_post(['ID' => $checkout_page_id, 'post_content' => '[woocommerce_checkout]']); }",
       },
       {
         step: "installPlugin",

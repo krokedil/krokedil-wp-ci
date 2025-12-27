@@ -5,18 +5,18 @@
   "description": "Shared integration and e2e tests for Krokedil plugin dev zips using WordPress Playground, Vitest and Playwright.",
   "type": "module",
   "scripts": {
-    "test": "npm run test:integration",
-    "test:integration": "vitest run",
-    "test:integration:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed",
-    "playground": "wp-playground",
-    "playground:help": "wp-playground --help"
+    "test": "vitest run --config=integration/vitest.config.ts && npx playwright test --config=end-to-end/playwright.config.ts",
+    "test:integration": "vitest --config=integration/vitest.config.ts",
+    "test:e2e": "npx playwright test --ui --config=end-to-end/playwright.config.ts",
+    "server": "npx @wp-playground/cli server --mount=./playground-temp-logs:/wordpress/wp-content/uploads/krokedil-wp-ci --blueprint=./blueprint.json"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0",
-    "@wp-playground/cli": "^0.10.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.0.0"
+    "@playwright/test": "^1.51.1",
+    "@types/node": "^22.14.1",
+    "@wp-playground/cli": "^3.0.22",
+    "vitest": "^3.1.1"
+  },
+  "dependencies": {
+    "unzipper": "^0.12.3"
   }
 }

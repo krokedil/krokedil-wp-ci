@@ -1,3 +1,9 @@
 node_modules
 .DS_Store
 deploy-output.txt
+# Ignore contents, but keep the folder
+tests/plugin-dev-zip/playground-temp-logs/*
+!tests/plugin-dev-zip/playground-temp-logs/.gitkeep
+tests/plugin-dev-zip/test-results/*
+# Generated artifacts
+#tests/plugin-dev-zip/.generated/
