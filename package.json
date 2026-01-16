@@ -5,10 +5,16 @@
   "description": "Reusable CI workflows and actions for Krokedil WordPress/WooCommerce plugins",
   "license": "MIT",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "lint": "echo 'No lint setup yet'"
+    "lint": "echo 'No lint setup yet'",
+    "test:scripts": "node --test tests/scripts"
   },
   "devDependencies": {
-    "jq": "0.0.1-security"
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "jq": "^1.7.2"
   }
 }

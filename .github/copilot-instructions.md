@@ -45,7 +45,7 @@ The canonical parser is `scripts/get-plugin-meta.sh`. Prefer using it rather tha
 
 - Tests under `tests/plugin-dev-zip` are ESM (`"type": "module"`).
 - Playwright and WordPress Playground CLI require Node >= 18; recommend Node 20.
-- E2E should reuse the shared blueprint generator in `scripts/lib/playground-blueprint.js`.
+- E2E should reuse the shared blueprint generator in `scripts/create-playground-blueprint.js`.
 - Keep changes minimal and aligned with existing patterns.
 
 ## When editing code
@@ -53,3 +53,38 @@ The canonical parser is `scripts/get-plugin-meta.sh`. Prefer using it rather tha
 - Keep workflow/script inputs and outputs stable; if adding or changing them, update docs and examples.
 - Prefer small, composable scripts over complex YAML logic.
 - Avoid plugin-specific hardcoding in shared workflows/scripts/tests.
+
+## Comment style
+
+- For Node/bash scripts in `scripts/`, prefer starting the file with a short “introduction” header comment that documents:
+  - Purpose
+  - Inputs (env vars/args)
+  - Behavior (high-level steps)
+  - Failure modes (what happens when inputs are missing, external calls fail, etc)
+- Prefer short, structured “section header” comments to explain intent in scripts (like:
+  `// ---------------------------------------------------------------------------` + a 1-line title).
+- For “variables/config object” inputs (env vars, options, template variables), prefer a JSDoc `@typedef`/`@property` block that documents:
+  - what each variable controls,
+  - expected type/shape,
+  - default/fallback behavior.
+- Use comments to clarify _why_ and _what_ (inputs, outputs, failure modes), not restating obvious code.
+- Keep comments up-to-date when changing logic; remove stale comments.
+
+### Tests comment style
+
+- For test files under `tests/**`, add a short header comment at the top that states:
+  - what is being tested (contract/behavior)
+  - which fixture(s) and env vars are involved (e.g. `PLUGIN_META_JSON`)
+  - why the fixture exists (deterministic and reusable)
+- Prefer short, structured section headers in longer tests/helpers (same style as scripts):
+  `// ---------------------------------------------------------------------------` + a 1-line title.
+- If a test overrides env vars, add a short comment explaining what is being overridden and why.
+
+## References
+
+- Playground Blueprints docs: https://wordpress.github.io/wordpress-playground/blueprints/
+- Playground Blueprint schema: https://playground.wordpress.net/blueprint-schema.json
+- Playground CLI docs: https://wordpress.github.io/wordpress-playground/cli/
+- Playwright test runner docs: https://playwright.dev/docs/test-intro
+- Playwright config reference: https://playwright.dev/docs/test-configuration
+- Vitest docs: https://vitest.dev/guide/
