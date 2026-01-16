@@ -15,12 +15,13 @@
  *   - Deterministic smoke coverage for dev zips in CI and locally.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { runCLI } from "@wp-playground/cli";
 import { resolve } from "path";
 import {
   mkdirSync,
   writeFileSync,
+  createWriteStream,
   existsSync,
   readFileSync,
   readdirSync,
@@ -115,6 +116,84 @@ test.describe(SUITE_NAME, () => {
   let wcSystemReportAttached = false;
   let wcSystemReportAnnotated = false;
   let wcUsedVersionsAttached = false;
+
+  let stopStdIoCapture: (() => Promise<void>) | undefined;
+
+  function startStdIoCapture(options: { perTestLogsDir: string; testInfo: any }) {
+    const { perTestLogsDir, testInfo } = options;
+
+    const MAX_LOG_BYTES = 5_000_000;
+    const stdoutPath = resolve(perTestLogsDir, "stdout.log");
+    const stderrPath = resolve(perTestLogsDir, "stderr.log");
+
+    const stdoutStream = createWriteStream(stdoutPath, { flags: "a" });
+    const stderrStream = createWriteStream(stderrPath, { flags: "a" });
+
+    const header =
+      `\n[${new Date().toISOString()}] Capturing Playwright worker stdio` +
+      `\n- title: ${testInfo.title}` +
+      `\n- retry: ${testInfo.retry}` +
+      `\n\n`;
+
+    stdoutStream.write(header);
+    stderrStream.write(header);
+
+    const origStdoutWrite = process.stdout.write.bind(process.stdout);
+    const origStderrWrite = process.stderr.write.bind(process.stderr);
+
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+
+    (process.stdout as any).write = (chunk: any, encoding?: any, cb?: any) => {
+      try {
+        if (stdoutBytes < MAX_LOG_BYTES) {
+          const buf = Buffer.isBuffer(chunk)
+            ? chunk
+            : Buffer.from(String(chunk), encoding || "utf8");
+          stdoutBytes += buf.length;
+          stdoutStream.write(buf);
+          if (stdoutBytes >= MAX_LOG_BYTES) {
+            stdoutStream.write(
+              `\n\n[truncated: reached ${MAX_LOG_BYTES} bytes]\n`
+            );
+          }
+        }
+      } catch {
+        // Never fail the test due to logging issues.
+      }
+      return origStdoutWrite(chunk as any, encoding as any, cb as any);
+    };
+
+    (process.stderr as any).write = (chunk: any, encoding?: any, cb?: any) => {
+      try {
+        if (stderrBytes < MAX_LOG_BYTES) {
+          const buf = Buffer.isBuffer(chunk)
+            ? chunk
+            : Buffer.from(String(chunk), encoding || "utf8");
+          stderrBytes += buf.length;
+          stderrStream.write(buf);
+          if (stderrBytes >= MAX_LOG_BYTES) {
+            stderrStream.write(
+              `\n\n[truncated: reached ${MAX_LOG_BYTES} bytes]\n`
+            );
+          }
+        }
+      } catch {
+        // Never fail the test due to logging issues.
+      }
+      return origStderrWrite(chunk as any, encoding as any, cb as any);
+    };
+
+    return async () => {
+      (process.stdout as any).write = origStdoutWrite;
+      (process.stderr as any).write = origStderrWrite;
+
+      await Promise.all([
+        new Promise<void>((r) => stdoutStream.end(() => r())),
+        new Promise<void>((r) => stderrStream.end(() => r())),
+      ]);
+    };
+  }
 
   function annotateFromWcSystemReport(
     testInfo: any,
@@ -270,6 +349,14 @@ test.describe(SUITE_NAME, () => {
     perTestLogsDir = resolve("./playground-temp-logs", RUN_ID, testFolderName);
     mkdirSync(perTestLogsDir, { recursive: true });
 
+    // Allow the global Playwright fixture to write per-test browser logs into
+    // the same folder as debug.log and other Playground artifacts.
+    process.env.KROKEDIL_E2E_PER_TEST_LOGS_DIR = perTestLogsDir;
+
+    // Also capture Playwright worker stdout/stderr into the per-test folder.
+    // This helps correlate long setup phases (Playground server + blueprint).
+    stopStdIoCapture = startStdIoCapture({ perTestLogsDir, testInfo });
+
     blueprintPath = resolve(perTestLogsDir, "blueprint.json");
 
     // ---------------------------------------------------------------------
@@ -353,6 +440,18 @@ test.describe(SUITE_NAME, () => {
     if (cliServer?.server) {
       await cliServer.server.close();
       cliServer = undefined;
+    }
+
+    // Stop stdio capture before archiving the per-test folder.
+    if (stopStdIoCapture) {
+      try {
+        await stopStdIoCapture();
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        console.warn(`Failed to stop stdio capture: ${message}`);
+      } finally {
+        stopStdIoCapture = undefined;
+      }
     }
 
     // Attach end-of-test artifacts from the mounted uploads folder.
