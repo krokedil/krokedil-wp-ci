@@ -44,6 +44,15 @@ jobs:
           path: .github/krokedil-wp-ci
           fetch-depth: 1
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install CI helper dependencies
+        working-directory: .github/krokedil-wp-ci
+        run: npm install
+
       - name: Get plugin meta
         id: meta
         run: bash .github/krokedil-wp-ci/scripts/get-plugin-meta.sh
@@ -104,6 +113,7 @@ jobs:
         working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
         env:
           E2E_BASE_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
+          PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
         run: |
           npx playwright install --with-deps
           npm run test:e2e
