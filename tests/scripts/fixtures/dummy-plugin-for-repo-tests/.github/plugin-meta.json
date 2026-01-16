@@ -1,0 +1,26 @@
+{
+  "slug": "dummy-plugin-for-repo-tests",
+  "name": "Dummy Plugin for Repo Tests",
+  "distribution-platform": "other",
+  "playground": {
+    "preferredVersions": {
+      "wp": "beta",
+      "php": "8.3"
+    },
+    "landingPage": "/wp-admin/plugins.php"
+  },
+  "plugin-dev-zip-e2e": {
+    "pages": [
+      {
+        "url": "/wp-admin/options-general.php?page=dummy-plugin-for-repo-tests",
+        "assertions": [
+          {
+            "selector": "h1",
+            "text": "Dummy Plugin for Repo Tests Settings",
+            "match": "contains"
+          }
+        ]
+      }
+    ]
+  }
+}
