@@ -1,4 +1,5 @@
 {
+  "name": "Kustom Checkout for WooCommerce",
   "slug": "klarna-checkout-for-woocommerce",
   "distribution-platform": "wordpress-org",
   "instawp": {
@@ -24,5 +25,19 @@
       "wp": "latest"
     },
     "landingPage": "/wp-admin/admin.php?page=wc-settings&tab=checkout&section=kco&from=WCADMIN_PAYMENT_SETTINGS"
+  },
+  "plugin-dev-zip-e2e": {
+    "pages": [
+      {
+        "url": "/wp-admin/admin.php?page=wc-settings&tab=checkout&section=kco&from=WCADMIN_PAYMENT_SETTINGS",
+        "assertions": [
+          {
+            "selector": "h2.wc-admin-header",
+            "text": "Kustom Checkout",
+            "match": "contains"
+          }
+        ]
+      }
+    ]
   }
 }
