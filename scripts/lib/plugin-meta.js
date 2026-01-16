@@ -1,5 +1,11 @@
 // Shared helper to parse PLUGIN_META_JSON plus a tiny safeGet accessor.
-// Domain-specific derivations live in the scripts that consume metadata.
+// Domain-specific derivations generally live in the scripts/tests that consume
+// metadata, but we keep a few tiny "safe parsing" helpers here to avoid
+// repeating strict JSON-shape validation across the repo.
+
+function isObject(value) {
+  return !!value && typeof value === "object";
+}
 
 function loadMeta({ requireEnv = true } = {}) {
   const raw = process.env.PLUGIN_META_JSON;
@@ -62,4 +68,35 @@ function assertFields(obj, paths) {
   return result;
 }
 
-module.exports = { loadMeta, safeGet, assertField, assertFields };
+// Read an optional string field.
+// Returns a trimmed non-empty string, or undefined if missing/empty/not a string.
+function getOptionalString(obj, path) {
+  const val = safeGet(obj, path, undefined);
+  if (typeof val !== "string") return undefined;
+  const trimmed = val.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+// Read an optional array field.
+// Returns the array as-is, or undefined when missing/not an array.
+function getOptionalArray(obj, path) {
+  const val = safeGet(obj, path, undefined);
+  return Array.isArray(val) ? val : undefined;
+}
+
+// Read an optional array field and keep only object elements.
+function getOptionalArrayOfObjects(obj, path) {
+  const val = getOptionalArray(obj, path);
+  if (!val) return undefined;
+  return val.filter((item) => isObject(item));
+}
+
+module.exports = {
+  loadMeta,
+  safeGet,
+  assertField,
+  assertFields,
+  getOptionalString,
+  getOptionalArray,
+  getOptionalArrayOfObjects,
+};
