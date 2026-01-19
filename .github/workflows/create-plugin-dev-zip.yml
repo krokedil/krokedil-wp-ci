@@ -107,7 +107,7 @@ jobs:
           DEV_ZIP_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
         run: |
           npm ci
-          npm test
+          npx vitest run --config=integration/vitest.config.ts
 
       - name: Run shared e2e tests (Playwright)
         working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
@@ -116,7 +116,8 @@ jobs:
           PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
         run: |
           npx playwright install --with-deps
-          npm run test:e2e
+          npm run clean:e2e
+          npx playwright test --config=end-to-end/playwright.config.ts
 
       - name: Create job summary
         id: summary
