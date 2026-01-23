@@ -215,6 +215,13 @@ async function ensureSnapshotExtracted(options) {
       if (!existsSync(zipPath)) throw error;
     }
 
+    if (!existsSync(zipPath)) {
+      throw new Error(
+        `Snapshot build did not produce expected zip at ${zipPath}. ` +
+          `This usually means the build process exited early or wrote to a different path.`,
+      );
+    }
+
     await extractZip({ zipPath, outDir: snapshotDir, unzip });
 
     if (!existsSync(wpConfigPath) && existsSync(wpConfigSamplePath)) {

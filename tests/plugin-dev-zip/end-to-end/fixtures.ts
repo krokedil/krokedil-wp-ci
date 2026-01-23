@@ -148,9 +148,6 @@ type PlaygroundWorkerContext = {
   pluginNameForReport: string;
   blogname: string;
   metaE2EPages: MetaE2EPage[];
-  wpVersion?: string;
-  phpVersion?: string;
-  landingPage?: string;
   pluginAutoMount: string;
   snapshotBlueprintJson: string;
   serverBlueprintJson: string;
@@ -180,7 +177,7 @@ type UsedVersionsAnnotationResult = {
   usedVersions: unknown;
 };
 
-const SUITE_ID = "plugin-dev-zip-e2e";
+const SUITE_ID = "pluginDevZipE2e";
 
 const RUN_ID = (() => {
   if (process.env.GITHUB_RUN_ID) {
@@ -507,7 +504,7 @@ export const test = testBase.extend<
 
       const metaE2EPages: MetaE2EPage[] = [];
       const rawPages =
-        getOptionalArrayOfObjects(META, "plugin-dev-zip-e2e.pages") || [];
+        getOptionalArrayOfObjects(META, "pluginDevZipE2e.pages") || [];
       for (const raw of rawPages) {
         const url = typeof raw.url === "string" ? raw.url : undefined;
         if (!url) continue;
@@ -532,16 +529,6 @@ export const test = testBase.extend<
         });
       }
 
-      const wpVersion = getOptionalString(
-        META,
-        "playground.preferredVersions.wp",
-      );
-      const phpVersion = getOptionalString(
-        META,
-        "playground.preferredVersions.php",
-      );
-      const landingPage = getOptionalString(META, "playground.landingPage");
-
       // Mounting contract:
       // - Local runs: E2E_AUTO_MOUNT points to a plugin folder.
       // - GitHub Actions: prepared plugin is available under ./zipfile/<slug>.
@@ -562,16 +549,15 @@ export const test = testBase.extend<
         reset_wordpress: true,
         install_storefront: true,
         configure_title_permalinks: true,
-        activate_plugin_slugs: pluginSlug,
+        // IMPORTANT: build-snapshot hangs if a mount is provided (Playground bug).
+        // We therefore avoid activating the plugin during snapshot creation.
+        // The plugin is mounted + activated in the per-test server blueprint.
+        activate_plugin_slugs: "",
         configure_debug_logs: false,
         generate_wc_status_report: false,
         // In the server blueprint we do the configurable WooCommerce setup.
         configure_woocommerce: false,
       };
-
-      if (wpVersion) snapshotBlueprintVariables.wp_version = wpVersion;
-      if (phpVersion) snapshotBlueprintVariables.php_version = phpVersion;
-      if (landingPage) snapshotBlueprintVariables.landing_page = landingPage;
 
       const serverBlueprintVariables: Record<string, any> = {
         blogname,
@@ -585,10 +571,6 @@ export const test = testBase.extend<
         generate_wc_status_report: true,
         configure_woocommerce: true,
       };
-
-      if (wpVersion) serverBlueprintVariables.wp_version = wpVersion;
-      if (phpVersion) serverBlueprintVariables.php_version = phpVersion;
-      if (landingPage) serverBlueprintVariables.landing_page = landingPage;
 
       const snapshotBuilder = new BlueprintBuilder(
         snapshotBlueprintVariables,
@@ -642,7 +624,19 @@ export const test = testBase.extend<
         cacheDir,
         pluginAutoMount,
         snapshotBlueprint: snapshotBuilder.blueprint,
-        buildSnapshotZip: runCLI,
+        buildSnapshotZip: async ({ outfile, blueprint, quiet }: any) => {
+          try {
+            await runCLI({
+              command: "build-snapshot",
+              outfile,
+              blueprint,
+              quiet,
+            });
+          } catch {
+            // runCLI sometimes throws due to a Playground issue (process.exit(0)).
+            // The snapshot-cache layer will validate that the zip exists.
+          }
+        },
         unzip,
       });
 
@@ -651,9 +645,6 @@ export const test = testBase.extend<
         pluginNameForReport,
         blogname,
         metaE2EPages,
-        wpVersion,
-        phpVersion,
-        landingPage,
         pluginAutoMount,
         snapshotBlueprintJson,
         serverBlueprintJson,
@@ -675,7 +666,6 @@ export const test = testBase.extend<
       serverBlueprintJson,
       serverBlueprint,
       snapshotWordpressTemplateDir,
-      phpVersion,
     } = playgroundWorker;
 
     const testFolderNameBase = toPathSlug(testInfo.title);
@@ -748,9 +738,7 @@ export const test = testBase.extend<
       ...(testInfo?.project?.metadata &&
       typeof (testInfo.project.metadata as any).phpVersion === "string"
         ? { php: (testInfo.project.metadata as any).phpVersion }
-        : phpVersion
-          ? { php: phpVersion as any }
-          : undefined),
+        : undefined),
       quiet: true,
     });
 

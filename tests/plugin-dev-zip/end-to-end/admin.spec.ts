@@ -32,7 +32,7 @@ test.describe("Plugin dev zip e2e", () => {
   test("Meta-defined pages", async ({ page, playground }, testInfo) => {
     test.skip(
       !playground.metaE2EPages || playground.metaE2EPages.length === 0,
-      "No plugin-dev-zip-e2e.pages configured in PLUGIN_META_JSON",
+      "No pluginDevZipE2e.pages configured in PLUGIN_META_JSON",
     );
 
     const baseUrl: string = playground.cliServer.serverUrl;

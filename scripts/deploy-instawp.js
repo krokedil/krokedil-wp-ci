@@ -17,25 +17,17 @@ try {
 // Inline domain-specific derivations using safeGet
 const PLUGIN_WC_BLUEPRINT_URL = safeGet(
   META,
-  "instawp.plugin_wc_blueprint_url",
-  ""
+  "instawp.pluginWcBlueprintUrl",
+  "",
 );
-const PAYMENT_GATEWAY_ID = safeGet(
-  META,
-  "instawp.payment_gateway_id",
-  undefined
-);
-const USE_CHECKOUT_BLOCK = safeGet(
-  META,
-  "instawp.use_checkout_block",
-  undefined
-);
+const PAYMENT_GATEWAY_ID = safeGet(META, "instawp.paymentGatewayId", undefined);
+const USE_CHECKOUT_BLOCK = safeGet(META, "instawp.useCheckoutBlock", undefined);
 const PLUGIN_CREDENTIALS_OPTION_PATCHES = (
-  safeGet(META, "instawp.plugin_credentials_option_patches", []) || []
+  safeGet(META, "instawp.pluginCredentialsOptionPatches", []) || []
 ).map((p) => ({
-  option_name: p.option_name,
+  option_name: p.optionName,
   key: p.key,
-  value: process.env[p.env_var_value] || "",
+  value: process.env[p.envVarValue] || "",
 }));
 
 // Environment variables from GitHub Actions
@@ -50,7 +42,7 @@ const REQUIRED_ENVS = ["INSTAWP_API_TOKEN", "AWS_S3_PUBLIC_URL"];
 const missingEnvs = REQUIRED_ENVS.filter((env) => !process.env[env]);
 if (missingEnvs.length > 0) {
   console.error(
-    `Missing required environment variables: ${missingEnvs.join(", ")}`
+    `Missing required environment variables: ${missingEnvs.join(", ")}`,
   );
   process.exit(1);
 }
@@ -75,7 +67,7 @@ async function apiCall({ method, path, body, logLabel }) {
     logInfo("Payload:");
     try {
       console.log(
-        typeof body === "string" ? body : JSON.stringify(body, null, 2)
+        typeof body === "string" ? body : JSON.stringify(body, null, 2),
       );
     } catch {}
   }
@@ -125,7 +117,7 @@ function instawpApiRequest({ method, path, body }) {
               path,
               statusCode: res.statusCode,
               response: data,
-            })}`
+            })}`,
           );
           reject(new Error(`InstaWP API error: ${res.statusCode} - ${data}`));
         }
@@ -173,7 +165,7 @@ async function createNewSite(normalizedUrl) {
   // If the API returns a task_id, wait for the site to be ready
   if (siteData.task_id) {
     logInfo(
-      `Creation is asynchronous (task_id=${siteData.task_id}). Waiting for readiness...`
+      `Creation is asynchronous (task_id=${siteData.task_id}). Waiting for readiness...`,
     );
     for (let i = 1; i <= 30; i++) {
       logInfo(`Checking site status (attempt ${i})...`);
@@ -196,7 +188,7 @@ async function createNewSite(normalizedUrl) {
         }
       } catch (err) {
         logError(
-          "Error checking site status: " + (err && err.stack ? err.stack : err)
+          "Error checking site status: " + (err && err.stack ? err.stack : err),
         );
       }
       await new Promise((res) => setTimeout(res, 10000));
@@ -213,7 +205,7 @@ async function createNewSite(normalizedUrl) {
 async function triggerInstaWpCommand(
   siteid,
   command_id,
-  commandArguments = undefined
+  commandArguments = undefined,
 ) {
   let payload = { command_id };
   if (Array.isArray(commandArguments) && commandArguments.length > 0) {
@@ -373,7 +365,7 @@ function logGroupEnd() {
     console.log(
       `${
         siteCreated ? "Created new" : "Found"
-      } site with siteid: ${siteid}, siteurl: ${siteurl}`
+      } site with siteid: ${siteid}, siteurl: ${siteurl}`,
     );
   } catch (e) {
     // Log errors and exit with failure

@@ -28,14 +28,14 @@ Caller repos must provide `.github/plugin-meta.json`.
 Known keys:
 
 - `slug` (required): plugin directory slug
-- `distribution-platform` (optional but recommended): e.g. `wordpress-org` or other values
+- `distributionPlatform` (optional but recommended): e.g. `wordpress-org` or other values
 - `playground` (optional): config used to generate Playground links in job summaries
 
 The canonical parser is `scripts/get-plugin-meta.sh`. Prefer using it rather than re-parsing JSON in workflows.
 
 ## Dev zip packaging rules
 
-- If `distribution-platform` is `wordpress-org`: use wp.org-compatible packaging flow.
+- If `distributionPlatform` is `wordpress-org`: use wp.org-compatible packaging flow.
 - Otherwise use rsync packaging and exclude file precedence:
   1. `.distignore`
   2. `.kernlignore`

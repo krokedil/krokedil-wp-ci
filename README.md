@@ -29,9 +29,8 @@ Minimal example (see `examples/basic-plugin-meta-json/.github/plugin-meta.json` 
 ```json
 {
   "slug": "my-plugin-slug",
-  "distribution-platform": "wordpress-org",
+  "distributionPlatform": "wordpress-org",
   "playground": {
-    "plugins": ["my-plugin-slug"],
     "preferredVersions": {
       "php": "8.2",
       "wp": "latest"
@@ -43,10 +42,11 @@ Minimal example (see `examples/basic-plugin-meta-json/.github/plugin-meta.json` 
 Key fields:
 
 - `slug` (required): The plugin directory/slug. Used when naming zips and building paths.
-- `distribution-platform` (optional but recommended): Controls how the dev zip is prepared. Typical values:
+- `distributionPlatform` (optional but recommended): Controls how the dev zip is prepared. Typical values:
   - `wordpress-org` – build using the WordPress.org-compatible flow.
   - Other values (e.g. `kernl`) – use a manual rsync-based packaging flow with `.distignore` / `.kernlignore` support.
 - `playground` (optional): Used to generate a WordPress Playground blueprint URL in job summaries.
+- `requiresPlugins` (optional, reserved for future use): Intended for declaring required plugin slugs (e.g. `woocommerce`).
 
 The shell script `scripts/get-plugin-meta.sh` is responsible for reading this file and exposing outputs to the workflows.
 
@@ -85,10 +85,10 @@ See `examples/basic-deploy-instawp/` for a minimal usage example.
 
 When creating a new site, the workflow reads InstaWP-related settings from `.github/plugin-meta.json`:
 
-- `instawp.plugin_wc_blueprint_url` (optional): Is an URL to a Woocommerce blueprint with plugin specific settings that you want to be applied to a new site.
-- `instawp.plugin_credentials_option_patches` (optional): Are an array of plugin credentials that you want to be applied to a new site. Make sure that you also pass the secrets that you want to use as values in to the github workflow.
-- `instawp.payment_gateway_id` (optional): If the plugin is a payment plugin, add the Woocommerce payment gateway id here and it will be used to set this payment gateway as the defualt one on the new site.
-- `instawp.use_checkout_block` (optional): If the plugin is a payment plugin, define if the checkout should use the checkout block (set it to true), or if it instead should use the checkout shortcode (set it to false).
+- `instawp.pluginWcBlueprintUrl` (optional): URL to a WooCommerce blueprint to apply to a new site.
+- `instawp.pluginCredentialsOptionPatches` (optional): Array of plugin credential option patches to apply. Values are read from GitHub secrets via env vars.
+- `instawp.paymentGatewayId` (optional): WooCommerce payment gateway ID to set as the default on the new site.
+- `instawp.useCheckoutBlock` (optional): If true, uses Checkout block; if false, uses the checkout shortcode.
 
 ## Helper scripts
 

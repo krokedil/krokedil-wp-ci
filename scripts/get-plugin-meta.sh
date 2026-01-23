@@ -17,9 +17,9 @@ if [ -z "$slug" ]; then
   exit 1
 fi
 
-distribution_platform=$(jq -r '.["distribution-platform"] // empty' "$FILE")
+distribution_platform=$(jq -r '.distributionPlatform // empty' "$FILE")
 if [ -z "$distribution_platform" ]; then
-  echo "::warning::Missing 'distribution-platform' in .github/plugin-meta.json" >&2
+  echo "::warning::Missing 'distributionPlatform' in .github/plugin-meta.json" >&2
 fi
 
 meta=$(jq -c '.' "$FILE")

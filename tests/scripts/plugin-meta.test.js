@@ -33,7 +33,7 @@ function readFixturePluginMetaJson() {
     "fixtures",
     "dummy-plugin-for-repo-tests",
     ".github",
-    "plugin-meta.json"
+    "plugin-meta.json",
   );
   return fs.readFileSync(fixturePath, "utf8");
 }
@@ -74,7 +74,7 @@ test("loadMeta: requireEnv=true throws when missing", () => {
   withEnv({ PLUGIN_META_JSON: undefined }, () => {
     assert.throws(
       () => loadMeta({ requireEnv: true }),
-      /PLUGIN_META_JSON env not set/
+      /PLUGIN_META_JSON env not set/,
     );
   });
 });
@@ -89,7 +89,7 @@ test("loadMeta: parses valid JSON", () => {
       const meta = loadMeta({ requireEnv: true });
       assert.equal(meta.slug, "dummy-plugin-for-repo-tests");
       assert.equal(meta.name, "Dummy Plugin for Repo Tests");
-    }
+    },
   );
 });
 
@@ -98,7 +98,7 @@ test("loadMeta: throws on invalid JSON", () => {
   withEnv({ PLUGIN_META_JSON: "{not-json" }, () => {
     assert.throws(
       () => loadMeta({ requireEnv: true }),
-      /Failed to parse PLUGIN_META_JSON/
+      /Failed to parse PLUGIN_META_JSON/,
     );
   });
 });
@@ -118,13 +118,13 @@ test("assertField/assertFields: throws for missing values", () => {
   assert.equal(assertField(meta, "slug"), "kco");
   assert.throws(
     () => assertField(meta, "name"),
-    /Required metadata field missing: name/
+    /Required metadata field missing: name/,
   );
 
   assert.deepEqual(assertFields({ a: 1, b: 2 }, ["a", "b"]), { a: 1, b: 2 });
   assert.throws(
     () => assertFields({ a: 1 }, ["a", "b"]),
-    /Required metadata field missing: b/
+    /Required metadata field missing: b/,
   );
 });
 
@@ -147,12 +147,12 @@ test("getOptionalArrayOfObjects: filters arrays to objects", () => {
       const meta = loadMeta({ requireEnv: true });
 
       const pages =
-        getOptionalArrayOfObjects(meta, "plugin-dev-zip-e2e.pages") || [];
+        getOptionalArrayOfObjects(meta, "pluginDevZipE2e.pages") || [];
       assert.equal(pages.length, 1);
 
       assert.equal(
         getOptionalString(pages[0], "url"),
-        "/wp-admin/options-general.php?page=dummy-plugin-for-repo-tests"
+        "/wp-admin/options-general.php?page=dummy-plugin-for-repo-tests",
       );
 
       const assertions =
@@ -161,9 +161,9 @@ test("getOptionalArrayOfObjects: filters arrays to objects", () => {
       assert.equal(getOptionalString(assertions[0], "selector"), "h1");
       assert.equal(
         getOptionalString(assertions[0], "text"),
-        "Dummy Plugin for Repo Tests Settings"
+        "Dummy Plugin for Repo Tests Settings",
       );
       assert.equal(getOptionalString(assertions[0], "match"), "contains");
-    }
+    },
   );
 });
