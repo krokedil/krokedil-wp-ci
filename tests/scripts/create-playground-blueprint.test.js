@@ -2,7 +2,7 @@
  * create-playground-blueprint.test.js
  * ---------------------------------------------------------------------------
  * Purpose:
- *   Contract tests for the blueprint generator (`scripts/create-playground-blueprint.js`).
+ *   Contract tests for the blueprint generator (`scripts/lib/playground/index.js`).
  *
  * What we validate:
  *   - Default blueprint values (e.g. landingPage)
@@ -19,14 +19,14 @@ const assert = require("node:assert/strict");
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
-} = require("../../scripts/create-playground-blueprint.js");
+} = require("../../scripts/lib/playground/index.js");
 
 function findWpCliCommand(steps, includes) {
   // ---------------------------------------------------------------------------
   // Helper: locate a wp-cli step by a substring in its command.
   // ---------------------------------------------------------------------------
   const step = steps.find(
-    (s) => s?.step === "wp-cli" && String(s.command || "").includes(includes)
+    (s) => s?.step === "wp-cli" && String(s.command || "").includes(includes),
   );
   return step?.command;
 }
@@ -44,34 +44,34 @@ test("BlueprintBuilder: sets default landingPage", () => {
   assert.equal(builder.blueprint.landingPage, "/wp-admin/plugins.php");
 });
 
-test("Template: base_woocommerce installs WooCommerce", () => {
-  // When base_woocommerce is enabled, WooCommerce must be installed+activated.
+test("Template: install_woocommerce installs WooCommerce", () => {
+  // When install_woocommerce is enabled, WooCommerce must be installed+activated.
   const builder = new BlueprintBuilder(
-    { base_woocommerce: true },
-    applyKrokedilBlueprintTemplate
+    { install_woocommerce: true },
+    applyKrokedilBlueprintTemplate,
   );
   const step = findInstallPluginStep(
     builder.blueprint.steps,
-    (s) => s?.pluginData?.slug === "woocommerce"
+    (s) => s?.pluginData?.slug === "woocommerce",
   );
   assert.ok(step, "Expected an installPlugin step for WooCommerce");
   assert.equal(step.options?.activate, true);
 });
 
-test("Template: wc_beta_tester config uses option update (no patch)", () => {
+test("Template: install_wc_beta_tester config uses option update (no patch)", () => {
   // We use `wp option update ... --format=json` to avoid patch failures when the
   // option/key does not exist yet.
   const builder = new BlueprintBuilder(
-    { wc_beta_tester: true },
-    applyKrokedilBlueprintTemplate
+    { install_wc_beta_tester: true },
+    applyKrokedilBlueprintTemplate,
   );
   const command = findWpCliCommand(
     builder.blueprint.steps,
-    "wc_beta_tester_options"
+    "wc_beta_tester_options",
   );
   assert.ok(
     command,
-    "Expected a wp-cli step configuring wc_beta_tester_options"
+    "Expected a wp-cli step configuring wc_beta_tester_options",
   );
   assert.match(command, /wp option update wc_beta_tester_options/);
   assert.match(command, /\"channel\":\"rc\"/);
@@ -83,12 +83,12 @@ test("Template: plugin_dev_zip_aws_s3_public_url installs plugin from URL", () =
   const url = "https://example.com/plugin.zip";
   const builder = new BlueprintBuilder(
     { plugin_dev_zip_aws_s3_public_url: url },
-    applyKrokedilBlueprintTemplate
+    applyKrokedilBlueprintTemplate,
   );
 
   const step = findInstallPluginStep(
     builder.blueprint.steps,
-    (s) => s?.pluginData?.resource === "url" && s?.pluginData?.url === url
+    (s) => s?.pluginData?.resource === "url" && s?.pluginData?.url === url,
   );
 
   assert.ok(step, "Expected an installPlugin step for plugin dev zip URL");
@@ -99,11 +99,11 @@ test("Template: activate_plugin_slugs creates a wp plugin activate command", () 
   // e2e runs rely on activating the mounted plugin by its slug.
   const builder = new BlueprintBuilder(
     { activate_plugin_slugs: "my-plugin" },
-    applyKrokedilBlueprintTemplate
+    applyKrokedilBlueprintTemplate,
   );
   const command = findWpCliCommand(
     builder.blueprint.steps,
-    "wp plugin activate"
+    "wp plugin activate",
   );
   assert.ok(command, "Expected a wp-cli activation step");
   assert.match(command, /wp plugin activate my-plugin/);
@@ -116,6 +116,6 @@ test("BlueprintBuilder.addSteps: throws if steps is not an array", () => {
   const builder = new BlueprintBuilder({});
   assert.throws(
     () => builder.addSteps(true, { step: "resetData" }),
-    /expects an array of steps/
+    /expects an array of steps/,
   );
 });
