@@ -45,7 +45,7 @@ const { loadMeta, getOptionalString } = require("./lib/plugin-meta");
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
-} = require("./create-playground-blueprint");
+} = require("./lib/playground");
 
 async function main() {
   // ---------------------------------------------------------------------------
@@ -90,8 +90,8 @@ async function main() {
   if (AWS_S3_PUBLIC_URL) {
     const blueprintVariables = {
       blogname: pluginName ? `${pluginName} dev zip` : "Plugin dev zip",
-      base_woocommerce: true,
-      wc_beta_tester: true,
+      install_woocommerce: true,
+      install_wc_beta_tester: true,
       plugin_dev_zip_aws_s3_public_url: AWS_S3_PUBLIC_URL,
     };
 
@@ -104,7 +104,7 @@ async function main() {
 
     const builder = new BlueprintBuilder(
       blueprintVariables,
-      applyKrokedilBlueprintTemplate
+      applyKrokedilBlueprintTemplate,
     );
 
     PLAYGROUND_MINIMAL_URL = await builder.generateUrl();
@@ -118,7 +118,7 @@ async function main() {
   if (ZIP_FILE_NAME) {
     if (AWS_S3_PUBLIC_URL) {
       lines.push(
-        "Download or share URL for created dev zip through the link below, which is available for 30 days:"
+        "Download or share URL for created dev zip through the link below, which is available for 30 days:",
       );
       lines.push(`* [${ZIP_FILE_NAME}.zip](${AWS_S3_PUBLIC_URL})`);
     } else {
@@ -127,7 +127,7 @@ async function main() {
     }
   }
   lines.push(
-    "\nDocumentation about how to install the dev zip can be found [here](https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/)."
+    "\nDocumentation about how to install the dev zip can be found [here](https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/).",
   );
   const wpVersionDisplay = wpVersion || "beta";
   const phpVersionDisplay = phpVersion || "latest";
@@ -135,10 +135,10 @@ async function main() {
   if (PLAYGROUND_MINIMAL_URL) {
     lines.push("## Test dev zip using WordPress Playground (experimental)");
     lines.push(
-      "You can test the created dev zip directly in [WordPress Playground](https://wordpress.org/playground/), which is an experimental project and functionality can be limited, through the links below:"
+      "You can test the created dev zip directly in [WordPress Playground](https://wordpress.org/playground/), which is an experimental project and functionality can be limited, through the links below:",
     );
     lines.push(
-      `* [Test dev zip using WordPress Playground](${PLAYGROUND_MINIMAL_URL}) (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`
+      `* [Test dev zip using WordPress Playground](${PLAYGROUND_MINIMAL_URL}) (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
     );
   } else if (rawMetaProvided && !AWS_S3_PUBLIC_URL) {
     lines.push("\n_Playground link skipped: missing AWS_S3_PUBLIC_URL._");
