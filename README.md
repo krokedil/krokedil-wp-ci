@@ -103,6 +103,21 @@ The `scripts/` directory contains the shared shell and Node utilities used by th
 
 These scripts are meant to be invoked from within the reusable workflows, not directly from plugin repos.
 
+## Local development
+
+This repo expects Node.js 20+ (see `.nvmrc` and `package.json#engines`).
+
+- Use nvm: `nvm use` (from repo root)
+- Install dependencies:
+  - Root scripts/tests: `npm install`
+  - Shared plugin-dev-zip tests: `cd tests/plugin-dev-zip && npm install`
+- Run script unit tests (Node test runner): `npm run test:scripts`
+- Run shared plugin-dev-zip tests:
+  - `cd tests/plugin-dev-zip && npm test`
+  - e2e against the dummy fixture plugin: `cd tests/plugin-dev-zip && npm run test:e2e:fixture`
+
+If you see errors like `node: bad option: --test`, you're running an older Node version.
+
 ## Examples
 
 The `examples/` folder contains minimal plugin-side GitHub Actions configurations that show how to consume these reusable workflows:
