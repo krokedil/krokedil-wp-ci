@@ -44,17 +44,23 @@ import {
   rmSync,
   statSync,
   writeFileSync,
-} from "fs";
-import { execFileSync } from "child_process";
-import { createRequire } from "module";
-import { resolve } from "path";
-import * as unzipper from "unzipper";
+} from "node:fs";
+import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
+import unzipper from "unzipper";
 
-function formatLogLine(parts: {
+type ConsoleLogParts = {
   type: string;
   text: string;
-  location?: { url?: string; lineNumber?: number; columnNumber?: number };
-}): string {
+  location?: {
+    url?: string;
+    lineNumber?: number;
+    columnNumber?: number;
+  };
+};
+
+function formatLogLine(parts: ConsoleLogParts): string {
   const ts = new Date().toISOString();
   const loc = parts.location?.url
     ? ` (${parts.location.url}:${parts.location.lineNumber ?? "?"}:${
@@ -165,7 +171,6 @@ export type PlaygroundTestContext = {
     snapshotJson: string;
     serverJson: string;
   };
-  runPhp: (code: string) => Promise<void>;
   ensureWcReport: () => Promise<string>;
 };
 
@@ -293,28 +298,6 @@ function startStdIoCapture(options: {
       }
     }
   };
-}
-
-/**
- * Writes WooCommerce's system status report (via PHP) into the mounted uploads
- * directory so it is persisted and can be attached to the report.
- */
-async function writeWcSystemReportForTest(options: {
-  cliServer: any;
-  perTestLogsDir: string;
-}) {
-  const { cliServer, perTestLogsDir } = options;
-
-  await cliServer.playground.run({
-    code: `<?php require_once '/wordpress/wp-load.php'; $class = 'Automattic\\\\WooCommerce\\\\Utilities\\\\RestApiUtil'; // Ensure we run as admin so REST has caps\nwp_set_current_user( 1 ); if ( class_exists( $class ) ) { $system_report = wc_get_container()->get( $class )->get_endpoint_data( '/wc/v3/system_status' ); } else { $system_report = array( 'error' => 'RestApiUtil not available', 'version' => defined( 'WC_VERSION' ) ? WC_VERSION : null ); } $dir = '/wordpress/wp-content/uploads/krokedil-wp-ci/'; $path = $dir . 'wc-system-report.json'; file_put_contents( $path, wp_json_encode( $system_report, JSON_PRETTY_PRINT ) );`,
-  });
-
-  const reportPath = resolve(perTestLogsDir, "wc-system-report.json");
-  if (!existsSync(reportPath)) {
-    throw new Error(
-      `Expected wc-system-report.json to be written at ${reportPath} but it was missing`,
-    );
-  }
 }
 
 /**
@@ -453,9 +436,16 @@ async function attachEndOfTestArtifacts(options: {
   // Folder archive (best-effort)
   try {
     const archivePath = testInfo.outputPath("playground-temp-logs.tgz");
-    execFileSync("tar", ["-czf", archivePath, "-C", perTestLogsDir, "."], {
-      stdio: "ignore",
-    });
+    // Exclude the per-test snapshot copy (wordpress/) since it's large and can
+    // easily dominate artifacts; we already attach the interesting logs/files
+    // individually.
+    execFileSync(
+      "tar",
+      ["-czf", archivePath, "--exclude=./snapshot", "-C", perTestLogsDir, "."],
+      {
+        stdio: "ignore",
+      },
+    );
 
     if (existsSync(archivePath)) {
       await testInfo.attach("playground-temp-logs.tgz", {
@@ -544,32 +534,17 @@ export const test = testBase.extend<
 
       const snapshotBlueprintVariables: Record<string, any> = {
         blogname,
-        install_woocommerce: true,
-        install_wc_beta_tester: true,
         reset_wordpress: true,
         install_storefront: true,
         configure_title_permalinks: true,
-        // IMPORTANT: build-snapshot hangs if a mount is provided (Playground bug).
-        // We therefore avoid activating the plugin during snapshot creation.
-        // The plugin is mounted + activated in the per-test server blueprint.
-        activate_plugin_slugs: "",
-        configure_debug_logs: false,
-        generate_wc_status_report: false,
-        // In the server blueprint we do the configurable WooCommerce setup.
-        configure_woocommerce: false,
+        install_woocommerce: true,
+        install_wc_beta_tester: true,
+        activate_plugin_slugs: pluginSlug,
       };
 
       const serverBlueprintVariables: Record<string, any> = {
-        blogname,
-        install_woocommerce: false,
-        install_wc_beta_tester: false,
-        reset_wordpress: false,
-        install_storefront: false,
-        configure_title_permalinks: false,
-        activate_plugin_slugs: pluginSlug,
         configure_debug_logs: true,
         generate_wc_status_report: true,
-        configure_woocommerce: true,
       };
 
       const snapshotBuilder = new BlueprintBuilder(
@@ -630,7 +605,8 @@ export const test = testBase.extend<
               command: "build-snapshot",
               outfile,
               blueprint,
-              quiet,
+              autoMount: pluginAutoMount,
+              quiet: true,
             });
           } catch {
             // runCLI sometimes throws due to a Playground issue (process.exit(0)).
@@ -708,6 +684,7 @@ export const test = testBase.extend<
     // This is critical when tests run in parallel.
     const perTestSnapshotDir = resolve(perTestLogsDir, "snapshot");
     const perTestWordpressDir = resolve(perTestSnapshotDir, "wordpress");
+
     rmSync(perTestSnapshotDir, { recursive: true, force: true });
     mkdirSync(perTestSnapshotDir, { recursive: true });
     cpSync(snapshotWordpressTemplateDir, perTestWordpressDir, {
@@ -720,53 +697,47 @@ export const test = testBase.extend<
     const cliServer = await runCLI({
       command: "server",
       port: 0,
-      mount: [
-        {
-          hostPath: perTestLogsDir,
-          vfsPath: "/wordpress/wp-content/uploads/krokedil-wp-ci",
-        },
-      ],
-      autoMount: pluginAutoMount,
       "mount-before-install": [
         {
           hostPath: perTestWordpressDir,
           vfsPath: "/wordpress",
         },
       ],
+      mount: [
+        {
+          hostPath: perTestLogsDir,
+          vfsPath: "/wordpress/wp-content/uploads/krokedil-wp-ci",
+        },
+      ],
+      skipWordPressSetup: true,
       blueprint: serverBlueprint,
-      mode: "mount-only",
+      quiet: true,
       ...(testInfo?.project?.metadata &&
       typeof (testInfo.project.metadata as any).phpVersion === "string"
         ? { php: (testInfo.project.metadata as any).phpVersion }
         : undefined),
-      quiet: true,
     });
-
-    const runPhp = async (code: string) => {
-      await cliServer.playground.run({ code });
-    };
 
     const ensureWcReport = async () => {
       const wcSystemReportPath = resolve(
         perTestLogsDir,
         "wc-system-report.json",
       );
-      if (!existsSync(wcSystemReportPath)) {
-        await writeWcSystemReportForTest({ cliServer, perTestLogsDir });
+      // The report is expected to be created by the server blueprint when
+      // `generate_wc_status_report` is enabled.
+      const startedAt = Date.now();
+      const timeoutMs = 10_000;
+      while (!existsSync(wcSystemReportPath)) {
+        if (Date.now() - startedAt > timeoutMs) {
+          throw new Error(
+            `Expected wc-system-report.json at ${wcSystemReportPath} but it was missing. ` +
+              `Ensure the server blueprint enables generate_wc_status_report and that the uploads mount is writable.`,
+          );
+        }
+        await new Promise((r) => setTimeout(r, 250));
       }
       return readFileSync(wcSystemReportPath, "utf8");
     };
-
-    // Attach WC report evidence early when available.
-    try {
-      const wcText = await ensureWcReport();
-      await testInfo.attach("wc-system-report.json", {
-        body: wcText,
-        contentType: "application/json",
-      });
-    } catch {
-      // ignore
-    }
 
     try {
       await use({
@@ -778,7 +749,6 @@ export const test = testBase.extend<
           snapshotJson: snapshotBlueprintJson,
           serverJson: serverBlueprintJson,
         },
-        runPhp,
         ensureWcReport,
       });
     } finally {
