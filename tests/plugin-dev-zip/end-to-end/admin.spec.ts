@@ -26,7 +26,13 @@ test.describe("Plugin dev zip e2e", () => {
     await expect(pluginRow).toBeVisible();
     await expect(pluginRow).toHaveClass(/active/);
 
-    await page.screenshot({ path: testInfo.outputPath("plugins-active.png") });
+    const pluginsActivePng = await page.screenshot({
+      path: testInfo.outputPath("plugins-active.png"),
+    });
+    await testInfo.attach("plugins-active.png", {
+      body: pluginsActivePng,
+      contentType: "image/png",
+    });
   });
 
   test("Meta-defined pages", async ({ page, playground }, testInfo) => {
@@ -53,8 +59,12 @@ test.describe("Plugin dev zip e2e", () => {
         }
       }
 
-      await page.screenshot({
+      const metaPng = await page.screenshot({
         path: testInfo.outputPath(`meta-page-${index + 1}.png`),
+      });
+      await testInfo.attach(`meta-page-${index + 1}.png`, {
+        body: metaPng,
+        contentType: "image/png",
       });
     }
   });
