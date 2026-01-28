@@ -12,8 +12,11 @@
  */
 
 import { test, expect } from "./fixtures.js";
+import { readPluginSlugFromEnvOrFile } from "./helpers/plugin-meta.js";
 
-test.describe("Plugin dev zip e2e", () => {
+const pluginSlug = readPluginSlugFromEnvOrFile();
+
+test.describe("With WooCommerce", () => {
   test("Plugin active in admin", async ({ page, playground }, testInfo) => {
     const baseUrl: string = playground.cliServer.serverUrl;
 
@@ -24,7 +27,7 @@ test.describe("Plugin dev zip e2e", () => {
     // WordPress uses data-slug on plugin rows; more reliable than name matching.
     const pluginRow = page.locator(`tr[data-slug="${playground.pluginSlug}"]`);
     await expect(pluginRow).toBeVisible();
-    await expect(pluginRow).toHaveClass(/active/);
+    await expect(pluginRow).toHaveClass(/(^|\s)active(\s|$)/);
 
     const pluginsActivePng = await page.screenshot({
       path: testInfo.outputPath("plugins-active.png"),
@@ -35,7 +38,10 @@ test.describe("Plugin dev zip e2e", () => {
     });
   });
 
-  test("Meta-defined pages", async ({ page, playground }, testInfo) => {
+  test("Plugin meta-defined pages works", async ({
+    page,
+    playground,
+  }, testInfo) => {
     test.skip(
       !playground.metaE2EPages || playground.metaE2EPages.length === 0,
       "No pluginDevZipE2e.pages configured in PLUGIN_META_JSON",
@@ -67,5 +73,58 @@ test.describe("Plugin dev zip e2e", () => {
         contentType: "image/png",
       });
     }
+  });
+});
+
+test.describe("Without WooCommerce", () => {
+  test.use({
+    serverBlueprintVarsOverrides: {
+      custom_wp_cli_command: `wp plugin deactivate --all --skip-plugins --skip-themes && wp plugin activate ${pluginSlug}`,
+    },
+  });
+
+  test("Plugin works without WooCommerce", async ({
+    page,
+    playground,
+  }, testInfo) => {
+    const baseUrl: string = playground.cliServer.serverUrl;
+
+    const requiresWooCommerce = playground.requiresPlugins
+      .map((s) => s.toLowerCase())
+      .includes("woocommerce");
+
+    if (requiresWooCommerce) {
+      await page.goto(
+        new URL(
+          "/wp-admin/plugins.php?plugin_status=inactive",
+          baseUrl,
+        ).toString(),
+      );
+      const pluginRow = page.locator(
+        `tr[data-slug="${playground.pluginSlug}"]`,
+      );
+      await expect(pluginRow).toBeVisible();
+      await expect(pluginRow).toHaveClass(/(^|\s)inactive(\s|$)/);
+    } else {
+      await page.goto(
+        new URL(
+          "/wp-admin/plugins.php?plugin_status=active",
+          baseUrl,
+        ).toString(),
+      );
+      const pluginRow = page.locator(
+        `tr[data-slug="${playground.pluginSlug}"]`,
+      );
+      await expect(pluginRow).toBeVisible();
+      await expect(pluginRow).toHaveClass(/(^|\s)active(\s|$)/);
+    }
+
+    const withoutWooPng = await page.screenshot({
+      path: testInfo.outputPath("without-woocommerce.png"),
+    });
+    await testInfo.attach("without-woocommerce.png", {
+      body: withoutWooPng,
+      contentType: "image/png",
+    });
   });
 });
