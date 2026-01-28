@@ -27,14 +27,14 @@ const {
  * - Strings: missing/undefined falls back to defaults shown below.
  *
  * @typedef {Object} BlueprintVariables
- * @property {string}  [blueprint_name] Blueprint description/title. Default: "Generated WordPress Playground Blueprint"
- * @property {string}  [landing_page]  Initial page inside WP. Default: "/wp-admin/plugins.php"
- * @property {boolean} [login]         Whether to auto-login. Default: true
+ * @property {string}  [blueprint_name] Blueprint description/title. Default: "Krokedil WP CI generated WordPress Playground Blueprint"
+ * @property {string}  [landing_page] Initial page inside WP. Default: "/wp-admin/plugins.php"
+ * @property {boolean} [login] Whether to auto-login. Default: true
  *
- * @property {string}  [php_version]   Preferred PHP version. Default: "latest"
- * @property {string}  [wp_version]    Preferred WP version. Default: "beta"
+ * @property {string}  [php_version] Preferred PHP version. Default: "8.3"
+ * @property {string}  [wp_version] Preferred WP version. Default: "beta"
  *
- * @property {string}  [blogname]      WordPress site title. Default: "Krokedil WP CI Site"
+ * @property {string}  [blogname] WordPress site title. Default: "Krokedil WP CI Site"
  *
  * @property {boolean} [configure_debug_logs] If true, enables WP debug + writes logs to /wp-content/uploads/krokedil-wp-ci.
  * @property {boolean} [reset_wordpress] If true, resets default content and removes default plugins.
@@ -50,6 +50,9 @@ const {
  *
  * @property {boolean} [install_wc_beta_tester] If true, installs WooCommerce Beta Tester and switches to RC channel.
  *
+ * @property {string}  [custom_wp_cli_command] If set, runs this wp-cli command after setup.
+ *
+ * @property {boolean} [generate_site_health_report] If true, writes wp-site-health-info.json to /wp-content/uploads/krokedil-wp-ci.
  * @property {boolean} [generate_wc_status_report] If true, writes wc-system-report.json to /wp-content/uploads/krokedil-wp-ci.
  *
  * @property {string}  [plugin_dev_zip_aws_s3_public_url] If set, installs/activates plugin zip from URL.

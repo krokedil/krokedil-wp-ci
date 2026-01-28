@@ -42,7 +42,7 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 2.5 Install and activate Storefront theme, then delete inactive themes
+  // 3 Install and activate Storefront theme, then delete inactive themes
   builder.addSteps(!!vars.install_storefront, [
     {
       step: "installTheme",
@@ -60,7 +60,7 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 2.6 Configure Storefront theme settings
+  // 4 Configure Storefront theme settings
   builder.addSteps(!!vars.configure_storefront, [
     {
       step: "wp-cli",
@@ -72,7 +72,7 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 3. Set site title and configure permalinks
+  // 5. Set site title and configure permalinks
   builder.addSteps(!!vars.configure_title_permalinks, [
     {
       step: "setSiteOptions",
@@ -87,7 +87,7 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 4. Install WooCommerce
+  // 6. Install WooCommerce
   builder.addSteps(!!vars.install_woocommerce, [
     {
       step: "installPlugin",
@@ -106,7 +106,7 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 6. Configure WooCommerce
+  // 7. Configure WooCommerce
   builder.addSteps(!!vars.configure_woocommerce, [
     {
       step: "setSiteOptions",
@@ -142,7 +142,7 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 5. Install WC and WP Beta Tester plugins and update to RC versions
+  // 8. Install WC and WP Beta Tester plugins and update to RC versions
   builder.addSteps(!!vars.install_wc_beta_tester, [
     {
       step: "installPlugin",
@@ -165,7 +165,7 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 5. Install and activate plugin dev zip
+  // 9. Install and activate plugin dev zip
   builder.addSteps(!!vars.plugin_dev_zip_aws_s3_public_url, [
     {
       step: "installPlugin",
@@ -177,7 +177,7 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 6. Activate specific plugins
+  // 10. Activate specific plugins
   builder.addSteps(!!vars.activate_plugin_slugs, [
     {
       step: "wp-cli",
@@ -188,7 +188,23 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 7. Write WooCommerce status report to krokedil-wp-ci folder after blueprint setup
+  // 11. Run custom wp cli command
+  builder.addSteps(!!vars.custom_wp_cli_command, [
+    {
+      step: "wp-cli",
+      command: vars.custom_wp_cli_command,
+    },
+  ]);
+
+  // 12. Write WordPress site health info to krokedil-wp-ci folder after blueprint setup
+  builder.addSteps(!!vars.generate_site_health_report, [
+    {
+      step: "runPHP",
+      code: "<?php require_once '/wordpress/wp-load.php'; foreach ( ['update', 'plugin', 'file', 'misc', 'class-wp-debug-data'] as $file ) { require_once ABSPATH . 'wp-admin/includes/' . $file . '.php'; } $dir = '/wordpress/wp-content/uploads/krokedil-wp-ci/'; if ( ! file_exists( $dir ) ) { mkdir( $dir, 0777, true ); } file_put_contents( $dir . 'wp-site-health-info.json', json_encode( WP_Debug_Data::debug_data(), JSON_PRETTY_PRINT ) ); ?>",
+    },
+  ]);
+
+  // 13. Write WooCommerce status report to krokedil-wp-ci folder after blueprint setup
   builder.addSteps(!!vars.generate_wc_status_report, [
     {
       step: "runPHP",
