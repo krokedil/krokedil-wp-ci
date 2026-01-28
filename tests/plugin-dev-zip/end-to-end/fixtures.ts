@@ -13,7 +13,7 @@
  *        - Attaches useful artifacts (debug.log, WooCommerce logs, system report)
  *
  * Why this exists:
- *   - Keep spec files (e.g. admin.spec.ts) focused on assertions.
+ *   - Keep spec files (e.g. plugin-dev-zip-e2e.spec.ts) focused on assertions.
  *   - Centralize snapshot/server lifecycle + logging so multiple specs can reuse it.
  *
  * Inputs (env vars):
@@ -153,18 +153,18 @@ type PlaygroundWorkerContext = {
   pluginSlug: string;
   pluginNameForReport: string;
   blogname: string;
+  requiresPlugins: string[];
   metaE2EPages: MetaE2EPage[];
   pluginAutoMount: string;
   snapshotBlueprintJson: string;
-  serverBlueprintJson: string;
   snapshotBlueprint: any;
-  serverBlueprint: any;
   snapshotWordpressTemplateDir: string;
 };
 
 export type PlaygroundTestContext = {
   cliServer: any;
   pluginSlug: string;
+  requiresPlugins: string[];
   perTestLogsDir: string;
   metaE2EPages: MetaE2EPage[];
   blueprints: {
@@ -183,6 +183,12 @@ type UsedVersionsAnnotationResult = {
 };
 
 const SUITE_ID = "pluginDevZipE2e";
+
+const DEFAULT_SERVER_BLUEPRINT_VARS: Record<string, any> = {
+  configure_debug_logs: true,
+  generate_site_health_report: true,
+  generate_wc_status_report: true,
+};
 
 const RUN_ID = (() => {
   if (process.env.GITHUB_RUN_ID) {
@@ -304,8 +310,9 @@ function startStdIoCapture(options: {
  * End-of-test artifact attachment.
  *
  * Attaches (best-effort):
+ *   - wp-site-health-info.json
  *   - wc-system-report.json
- *   - used-versions-for-test.json (derived from the WC system report)
+ *   - used-versions-for-test.json (derived from wp-site-health-info.json)
  *   - debug.log (truncated)
  *   - newest wc-logs files (truncated) + wc-logs/index.txt
  *   - playground-temp-logs.tgz archive (fallback)
@@ -320,14 +327,64 @@ async function attachEndOfTestArtifacts(options: {
   if (!perTestLogsDir || !existsSync(perTestLogsDir)) return;
 
   const requireForSharedLib = createRequire(import.meta.url);
-  const { buildUsedVersionsAnnotationFromWcSystemReport } = requireForSharedLib(
-    "../../../scripts/lib/wc-system-report.js",
-  ) as {
-    buildUsedVersionsAnnotationFromWcSystemReport: (options: {
-      pluginName: string;
-      wcSystemReportJsonText: string;
-    }) => UsedVersionsAnnotationResult;
-  };
+  const { buildUsedVersionsAnnotationFromWpSiteHealthInfo } =
+    requireForSharedLib("../../../scripts/lib/used-versions.js") as {
+      buildUsedVersionsAnnotationFromWpSiteHealthInfo: (options: {
+        pluginName: string;
+        wpSiteHealthInfoJsonText: string;
+      }) => UsedVersionsAnnotationResult;
+    };
+
+  // wp-site-health-info.json
+  const siteHealthInfoPath = resolve(
+    perTestLogsDir,
+    "wp-site-health-info.json",
+  );
+  if (existsSync(siteHealthInfoPath)) {
+    const MAX_SITE_HEALTH_BYTES = 2_000_000;
+    const buf = readFileSync(siteHealthInfoPath);
+    const rawText = buf.toString("utf8");
+    const text =
+      buf.length > MAX_SITE_HEALTH_BYTES
+        ? buf.subarray(0, MAX_SITE_HEALTH_BYTES).toString("utf8") +
+          `\n\n[truncated: ${buf.length - MAX_SITE_HEALTH_BYTES} bytes omitted]\n`
+        : buf.toString("utf8");
+
+    await testInfo.attach("wp-site-health-info.json", {
+      body: text,
+      contentType: "application/json",
+    });
+
+    // Prefer generating used-versions from Site Health "Info".
+    try {
+      const { annotation, usedVersions } =
+        buildUsedVersionsAnnotationFromWpSiteHealthInfo({
+          pluginName: pluginNameForReport,
+          wpSiteHealthInfoJsonText: rawText,
+        });
+
+      testInfo.annotations.push(annotation as any);
+
+      const usedVersionsJsonText = JSON.stringify(usedVersions, null, 2) + "\n";
+
+      // Persist next to other per-test evidence for easier local debugging.
+      try {
+        writeFileSync(
+          resolve(perTestLogsDir, "used-versions-for-test.json"),
+          usedVersionsJsonText,
+        );
+      } catch {
+        // Ignore failures here; attaching to the report is the primary output.
+      }
+
+      await testInfo.attach("used-versions-for-test.json", {
+        body: usedVersionsJsonText,
+        contentType: "application/json",
+      });
+    } catch {
+      // Never fail the test due to evidence formatting.
+    }
+  }
 
   // wc-system-report.json
   const wcSystemReportPath = resolve(perTestLogsDir, "wc-system-report.json");
@@ -337,24 +394,6 @@ async function attachEndOfTestArtifacts(options: {
       body: wcSystemReportText,
       contentType: "application/json",
     });
-
-    try {
-      const { annotation, usedVersions } =
-        buildUsedVersionsAnnotationFromWcSystemReport({
-          pluginName: pluginNameForReport,
-          wcSystemReportJsonText: wcSystemReportText,
-        });
-
-      testInfo.annotations.push(annotation as any);
-
-      const usedVersionsJsonText = JSON.stringify(usedVersions, null, 2) + "\n";
-      await testInfo.attach("used-versions-for-test.json", {
-        body: usedVersionsJsonText,
-        contentType: "application/json",
-      });
-    } catch {
-      // Never fail the test due to evidence formatting.
-    }
   }
 
   // debug.log
@@ -461,11 +500,16 @@ async function attachEndOfTestArtifacts(options: {
 export const test = testBase.extend<
   {
     playground: PlaygroundTestContext;
+    serverBlueprintVars: Record<string, any>;
+    serverBlueprintVarsOverrides: Record<string, any>;
   },
   {
     playgroundWorker: PlaygroundWorkerContext;
   }
 >({
+  serverBlueprintVars: [{}, { option: true }],
+  serverBlueprintVarsOverrides: [{}, { option: true }],
+
   playgroundWorker: [
     async ({}, use) => {
       const requireForShared = createRequire(import.meta.url);
@@ -475,8 +519,12 @@ export const test = testBase.extend<
         computeSnapshotCacheKey,
         ensureSnapshotExtracted,
       } = requireForShared("../../../scripts/lib/playground/index.js") as any;
-      const { loadMeta, getOptionalString, getOptionalArrayOfObjects } =
-        requireForShared("../../../scripts/lib/plugin-meta.js") as any;
+      const {
+        loadMeta,
+        getOptionalString,
+        getOptionalArray,
+        getOptionalArrayOfObjects,
+      } = requireForShared("../../../scripts/lib/plugin-meta.js") as any;
 
       // ---------------------------------------------------------------------
       // Inputs: plugin meta (must include slug)
@@ -491,6 +539,13 @@ export const test = testBase.extend<
       const pluginName = getOptionalString(META, "name");
       const pluginNameForReport = pluginName || pluginSlug || "(unknown)";
       const blogname = pluginName ? `${pluginName} dev zip` : "Plugin dev zip";
+
+      const requiresPlugins = (
+        (getOptionalArray(META, "requiresPlugins") as unknown[]) || []
+      )
+        .filter((v) => typeof v === "string")
+        .map((v) => (v as string).trim())
+        .filter(Boolean);
 
       const metaE2EPages: MetaE2EPage[] = [];
       const rawPages =
@@ -542,11 +597,6 @@ export const test = testBase.extend<
         activate_plugin_slugs: pluginSlug,
       };
 
-      const serverBlueprintVariables: Record<string, any> = {
-        configure_debug_logs: true,
-        generate_wc_status_report: true,
-      };
-
       const snapshotBuilder = new BlueprintBuilder(
         snapshotBlueprintVariables,
         applyKrokedilBlueprintTemplate,
@@ -554,14 +604,6 @@ export const test = testBase.extend<
       await snapshotBuilder.assertValidWithSchema();
       const snapshotBlueprintJson =
         JSON.stringify(snapshotBuilder.blueprint, null, 2) + "\n";
-
-      const serverBuilder = new BlueprintBuilder(
-        serverBlueprintVariables,
-        applyKrokedilBlueprintTemplate,
-      );
-      await serverBuilder.assertValidWithSchema();
-      const serverBlueprintJson =
-        JSON.stringify(serverBuilder.blueprint, null, 2) + "\n";
 
       // ---------------------------------------------------------------------
       // Snapshot cache
@@ -577,10 +619,6 @@ export const test = testBase.extend<
       writeFileSync(
         resolve(cacheDir, "snapshot-blueprint.json"),
         snapshotBlueprintJson,
-      );
-      writeFileSync(
-        resolve(cacheDir, "server-blueprint.json"),
-        serverBlueprintJson,
       );
 
       const unzip = async ({
@@ -620,27 +658,29 @@ export const test = testBase.extend<
         pluginSlug,
         pluginNameForReport,
         blogname,
+        requiresPlugins,
         metaE2EPages,
         pluginAutoMount,
         snapshotBlueprintJson,
-        serverBlueprintJson,
         snapshotBlueprint: snapshotBuilder.blueprint,
-        serverBlueprint: serverBuilder.blueprint,
         snapshotWordpressTemplateDir: extracted.wordpressDir,
       });
     },
     { scope: "worker" },
   ],
 
-  playground: async ({ playgroundWorker }, use, testInfo) => {
+  playground: async (
+    { playgroundWorker, serverBlueprintVars, serverBlueprintVarsOverrides },
+    use,
+    testInfo,
+  ) => {
     const {
       pluginSlug,
       pluginNameForReport,
+      requiresPlugins,
       metaE2EPages,
       pluginAutoMount,
       snapshotBlueprintJson,
-      serverBlueprintJson,
-      serverBlueprint,
       snapshotWordpressTemplateDir,
     } = playgroundWorker;
 
@@ -667,16 +707,8 @@ export const test = testBase.extend<
       resolve(perTestLogsDir, "snapshot-blueprint.json"),
       snapshotBlueprintJson,
     );
-    writeFileSync(
-      resolve(perTestLogsDir, "server-blueprint.json"),
-      serverBlueprintJson,
-    );
     await testInfo.attach("snapshot-blueprint.json", {
       body: snapshotBlueprintJson,
-      contentType: "application/json",
-    });
-    await testInfo.attach("server-blueprint.json", {
-      body: serverBlueprintJson,
       contentType: "application/json",
     });
 
@@ -694,6 +726,33 @@ export const test = testBase.extend<
     // ---------------------------------------------------------------------
     // Start server
     // ---------------------------------------------------------------------
+    const requireForShared = createRequire(import.meta.url);
+    const { BlueprintBuilder, applyKrokedilBlueprintTemplate } =
+      requireForShared("../../../scripts/lib/playground/index.js") as any;
+
+    const effectiveServerBlueprintVars: Record<string, any> = {
+      ...DEFAULT_SERVER_BLUEPRINT_VARS,
+      ...(serverBlueprintVars || {}),
+      ...(serverBlueprintVarsOverrides || {}),
+    };
+
+    const serverBuilder = new BlueprintBuilder(
+      effectiveServerBlueprintVars,
+      applyKrokedilBlueprintTemplate,
+    );
+    await serverBuilder.assertValidWithSchema();
+    const serverBlueprintJson =
+      JSON.stringify(serverBuilder.blueprint, null, 2) + "\n";
+
+    writeFileSync(
+      resolve(perTestLogsDir, "server-blueprint.json"),
+      serverBlueprintJson,
+    );
+    await testInfo.attach("server-blueprint.json", {
+      body: serverBlueprintJson,
+      contentType: "application/json",
+    });
+
     const cliServer = await runCLI({
       command: "server",
       port: 0,
@@ -710,7 +769,7 @@ export const test = testBase.extend<
         },
       ],
       skipWordPressSetup: true,
-      blueprint: serverBlueprint,
+      blueprint: serverBuilder.blueprint,
       quiet: true,
       ...(testInfo?.project?.metadata &&
       typeof (testInfo.project.metadata as any).phpVersion === "string"
@@ -719,6 +778,11 @@ export const test = testBase.extend<
     });
 
     const ensureWcReport = async () => {
+      if (!effectiveServerBlueprintVars.generate_wc_status_report) {
+        throw new Error(
+          "ensureWcReport() called but generate_wc_status_report is disabled in the server blueprint.",
+        );
+      }
       const wcSystemReportPath = resolve(
         perTestLogsDir,
         "wc-system-report.json",
@@ -743,6 +807,7 @@ export const test = testBase.extend<
       await use({
         cliServer,
         pluginSlug,
+        requiresPlugins,
         perTestLogsDir,
         metaE2EPages,
         blueprints: {

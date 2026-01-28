@@ -22,7 +22,7 @@ export default defineConfig({
     "..",
     "test-results",
     "end-to-end",
-    "artifacts"
+    "artifacts",
   ),
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -47,7 +47,7 @@ export default defineConfig({
               "test-results",
               "end-to-end",
               "json-report",
-              "report.json"
+              "report.json",
             ),
           },
         ],
@@ -61,7 +61,7 @@ export default defineConfig({
               "..",
               "test-results",
               "end-to-end",
-              "html-report"
+              "html-report",
             ),
           },
         ],
@@ -78,7 +78,7 @@ export default defineConfig({
               "test-results",
               "end-to-end",
               "json-report",
-              "report.json"
+              "report.json",
             ),
           },
         ],
@@ -92,14 +92,18 @@ export default defineConfig({
               "..",
               "test-results",
               "end-to-end",
-              "html-report"
+              "html-report",
             ),
           },
         ],
       ],
   use: {
-    /* Traces are expensive, "on-first-retry" records only after a failure triggers a retry. */
-    trace: "on-first-retry",
+    /*
+     * Traces are expensive.
+     * - CI: only record on first retry to keep artifacts smaller
+     * - Local: retain traces for failures to speed up debugging
+     */
+    trace: process.env.CI ? "on-first-retry" : "retain-on-failure",
     /* Capture screenshots only when a test fails (keeps CI artifacts smaller). */
     screenshot: "only-on-failure",
   },
