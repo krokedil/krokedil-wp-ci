@@ -2,6 +2,7 @@
   "slug": "dummy-plugin-for-repo-tests",
   "name": "Dummy Plugin for Repo Tests",
   "distributionPlatform": "other",
+  "requiresPlugins": ["woocommerce"],
   "playground": {
     "preferredVersions": {
       "wp": "beta",

@@ -4,6 +4,7 @@
  * Description: Test fixture plugin for krokedil-wp-ci scripts and local e2e runs.
  * Version: 0.0.0
  * Author: Krokedil (fixture)
+ * Requires Plugins: woocommerce
  */
 
 // Intentionally minimal.
