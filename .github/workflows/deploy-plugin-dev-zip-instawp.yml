@@ -6,7 +6,7 @@ on:
         required: false
         type: string
         default: ""
-        description: "InstaWP site URL to deploy to (e.g. qliro-sandbox.krokedil.site).."
+        description: "InstaWP site URL to deploy to (e.g. qliro-sandbox.krokedil.site)."
     secrets:
       AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP:
         required: true
