@@ -10,6 +10,9 @@ const __dirname = path.dirname(__filename);
  */
 export default defineConfig({
   testDir: ".",
+  // Prebuild the WordPress Playground snapshot once before running any tests.
+  // This makes snapshot failures fail fast and avoids per-worker rebuild attempts.
+  globalSetup: path.join(__dirname, "global-setup.ts"),
   /* Default per-test timeout in milliseconds, includes hooks. 1000 ms = 1 second */
   timeout: 2 * 60 * 1000,
   /* Default timeout for expect(...) polling assertions. */

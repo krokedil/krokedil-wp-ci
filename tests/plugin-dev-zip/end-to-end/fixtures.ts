@@ -6,7 +6,7 @@
  *      attaches them to the Playwright report.
  *   2) A `playground` fixture that:
  *        - Reads plugin metadata (PLUGIN_META_JSON)
- *        - Builds (and caches) a WordPress Playground snapshot once per worker
+ *        - Uses a cached WordPress Playground snapshot prepared in globalSetup
  *        - Starts a per-test Playground server mounted with:
  *            * per-test logs dir (uploads/krokedil-wp-ci)
  *            * plugin under test (E2E_AUTO_MOUNT)
@@ -35,7 +35,6 @@ import type { TestInfo } from "@playwright/test";
 import { runCLI } from "@wp-playground/cli";
 import {
   cpSync,
-  createReadStream,
   createWriteStream,
   existsSync,
   mkdirSync,
@@ -48,7 +47,6 @@ import {
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
-import unzipper from "unzipper";
 
 type ConsoleLogParts = {
   type: string;
@@ -517,7 +515,6 @@ export const test = testBase.extend<
         BlueprintBuilder,
         applyKrokedilBlueprintTemplate,
         computeSnapshotCacheKey,
-        ensureSnapshotExtracted,
       } = requireForShared("../../../scripts/lib/playground/index.js") as any;
       const {
         loadMeta,
@@ -621,38 +618,23 @@ export const test = testBase.extend<
         snapshotBlueprintJson,
       );
 
-      const unzip = async ({
-        zipPath,
-        outDir,
-      }: {
-        zipPath: string;
-        outDir: string;
-      }) => {
-        await createReadStream(zipPath)
-          .pipe((unzipper as any).Extract({ path: outDir }))
-          .promise();
-      };
+      // Snapshot is built in Playwright globalSetup. The worker fixture must never
+      // attempt to rebuild, and must not delete/overwrite an existing snapshot.
+      const snapshotDir = resolve(cacheDir, "snapshot");
+      const wordpressDir = resolve(snapshotDir, "wordpress");
+      const wpAdminDir = resolve(wordpressDir, "wp-admin");
+      const wpConfigPath = resolve(wordpressDir, "wp-config.php");
+      const globalSetupMarker = resolve(cacheDir, "global-setup.ok.json");
 
-      const extracted = await ensureSnapshotExtracted({
-        cacheDir,
-        pluginAutoMount,
-        snapshotBlueprint: snapshotBuilder.blueprint,
-        buildSnapshotZip: async ({ outfile, blueprint }: any) => {
-          try {
-            await runCLI({
-              command: "build-snapshot",
-              outfile,
-              blueprint,
-              autoMount: pluginAutoMount,
-              quiet: true,
-            });
-          } catch {
-            // runCLI sometimes throws due to a Playground issue (process.exit(0)).
-            // The snapshot-cache layer will validate that the zip exists.
-          }
-        },
-        unzip,
-      });
+      const looksReady = existsSync(wpAdminDir) && existsSync(wpConfigPath);
+      if (!looksReady) {
+        throw new Error(
+          "Snapshot is missing or incomplete, and snapshot rebuild is disabled during tests. " +
+            "Expected Playwright globalSetup to build it first. " +
+            `cacheDir=${cacheDir} ` +
+            `globalSetupMarker=${existsSync(globalSetupMarker) ? "present" : "missing"}`,
+        );
+      }
 
       await use({
         pluginSlug,
@@ -663,7 +645,7 @@ export const test = testBase.extend<
         pluginAutoMount,
         snapshotBlueprintJson,
         snapshotBlueprint: snapshotBuilder.blueprint,
-        snapshotWordpressTemplateDir: extracted.wordpressDir,
+        snapshotWordpressTemplateDir: wordpressDir,
       });
     },
     { scope: "worker" },
