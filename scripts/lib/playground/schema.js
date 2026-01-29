@@ -4,41 +4,61 @@
 //   Shared helpers for the WordPress Playground Blueprint JSON schema.
 //
 // Behavior
-//   - Fetches the official schema JSON and compiles it with Ajv.
+//   - Loads a vendored schema JSON from this repo and compiles it with Ajv.
 //   - Caches the compiled validator per Node.js process.
 //
 // Failure modes
-//   - Network/HTTP failures fetching the schema throw an Error.
+//   - Missing vendored schema throws an Error with a clear hint.
 //   - Invalid schema / compilation failures throw an Error.
+
+const fs = require("node:fs");
+const path = require("node:path");
 
 const PLAYGROUND_SCHEMA_URL =
   "https://playground.wordpress.net/blueprint-schema.json";
 
 let compiledSchemaValidatorPromise;
 
-async function fetchJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
+const VENDORED_SCHEMA_PATH = path.join(__dirname, "blueprint-schema.json");
+
+function readVendoredPlaygroundSchema() {
+  if (!fs.existsSync(VENDORED_SCHEMA_PATH)) {
     throw new Error(
-      `Failed to fetch ${url}: ${response.status} ${response.statusText}`,
+      "WordPress Playground blueprint schema is missing. " +
+        `Expected vendored schema at ${VENDORED_SCHEMA_PATH}. ` +
+        "This repo validates blueprints offline and does not fetch the schema from the network.",
     );
   }
-  return response.json();
+
+  const raw = fs.readFileSync(VENDORED_SCHEMA_PATH, "utf8");
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+    throw new Error(
+      `Vendored Playground schema JSON is invalid at ${VENDORED_SCHEMA_PATH}: ${message}`,
+    );
+  }
 }
 
 async function getCompiledPlaygroundSchemaValidator() {
   if (compiledSchemaValidatorPromise) return compiledSchemaValidatorPromise;
 
   compiledSchemaValidatorPromise = (async () => {
-    const Ajv = require("ajv");
-    const addFormats = require("ajv-formats");
+    try {
+      const Ajv = require("ajv");
+      const addFormats = require("ajv-formats");
 
-    const ajv = new Ajv({ allErrors: true, strict: false });
-    addFormats(ajv);
+      const ajv = new Ajv({ allErrors: true, strict: false });
+      addFormats(ajv);
 
-    const schema = await fetchJson(PLAYGROUND_SCHEMA_URL);
-
-    return ajv.compile(schema);
+      const schema = readVendoredPlaygroundSchema();
+      return ajv.compile(schema);
+    } catch (error) {
+      // Avoid caching failures forever; allow a later call to succeed.
+      compiledSchemaValidatorPromise = undefined;
+      throw error;
+    }
   })();
 
   return compiledSchemaValidatorPromise;

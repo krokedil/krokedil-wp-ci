@@ -103,6 +103,15 @@ The `scripts/` directory contains the shared shell and Node utilities used by th
 
 These scripts are meant to be invoked from within the reusable workflows, not directly from plugin repos.
 
+## WordPress Playground blueprint schema
+
+Blueprint JSON schema validation in this repo is intentionally offline-only.
+
+- The schema is vendored at [scripts/lib/playground/blueprint-schema.json](scripts/lib/playground/blueprint-schema.json).
+- Validation code lives in [scripts/lib/playground/schema.js](scripts/lib/playground/schema.js) and will not fetch the schema from the network.
+
+When you bump WordPress Playground packages (typically [tests/plugin-dev-zip/package.json](tests/plugin-dev-zip/package.json)), you should also refresh the vendored schema by copying it from the installed Playground packages and committing the updated JSON file.
+
 ## Local development
 
 This repo expects Node.js 20+ (see `.nvmrc` and `package.json#engines`).

@@ -12,7 +12,7 @@
     "lint": "echo 'No lint setup yet'",
     "test:scripts": "node --test tests/scripts"
   },
-  "devDependencies": {
+  "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "jq": "^1.7.2"
