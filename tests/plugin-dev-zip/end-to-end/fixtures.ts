@@ -637,7 +637,7 @@ export const test = testBase.extend<
         cacheDir,
         pluginAutoMount,
         snapshotBlueprint: snapshotBuilder.blueprint,
-        buildSnapshotZip: async ({ outfile, blueprint, quiet }: any) => {
+        buildSnapshotZip: async ({ outfile, blueprint }: any) => {
           try {
             await runCLI({
               command: "build-snapshot",
@@ -689,9 +689,12 @@ export const test = testBase.extend<
       ? `${testFolderNameBase}-retry-${testInfo.retry}`
       : testFolderNameBase;
 
+    const projectFolderName = toPathSlug(testInfo.project.name);
+
     const perTestLogsDir = resolve(
       "./playground-temp-logs",
       RUN_ID,
+      projectFolderName,
       testFolderName,
     );
     mkdirSync(perTestLogsDir, { recursive: true });
@@ -735,6 +738,19 @@ export const test = testBase.extend<
       ...(serverBlueprintVars || {}),
       ...(serverBlueprintVarsOverrides || {}),
     };
+
+    const projectPhpVersion =
+      testInfo?.project?.metadata &&
+      typeof (testInfo.project.metadata as any).phpVersion === "string"
+        ? (testInfo.project.metadata as any).phpVersion
+        : undefined;
+
+    if (
+      projectPhpVersion &&
+      effectiveServerBlueprintVars.php_version === undefined
+    ) {
+      effectiveServerBlueprintVars.php_version = projectPhpVersion;
+    }
 
     const serverBuilder = new BlueprintBuilder(
       effectiveServerBlueprintVars,
