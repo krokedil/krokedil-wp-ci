@@ -5,7 +5,8 @@
   "description": "Shared integration and e2e tests for Krokedil plugin dev zips using WordPress Playground, Vitest and Playwright.",
   "type": "module",
   "scripts": {
-    "clean:e2e": "node --input-type=module -e \"import fs from 'node:fs'; import path from 'node:path'; const rm=(p)=>fs.rmSync(p,{recursive:true,force:true}); rm(path.join('test-results', 'end-to-end'));\"",
+    "clean:e2e": "node --input-type=module -e \"import fs from 'node:fs'; import path from 'node:path'; const rm=(p)=>fs.rmSync(p,{recursive:true,force:true}); rm(path.join('test-results', 'end-to-end')); rm('playground-temp-logs');\"",
+    "clean:e2e:full": "npm run clean:e2e && node --input-type=module -e \"import fs from 'node:fs'; const rm=(p)=>fs.rmSync(p,{recursive:true,force:true}); rm('playground-snapshots');\"",
     "test": "vitest run --config=integration/vitest.config.ts && npm run clean:e2e && npx playwright test --config=end-to-end/playwright.config.ts",
     "test:integration": "vitest --config=integration/vitest.config.ts",
     "test:e2e": "npm run clean:e2e && npx playwright test --ui --config=end-to-end/playwright.config.ts",
