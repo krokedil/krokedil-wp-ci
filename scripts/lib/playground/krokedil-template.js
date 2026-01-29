@@ -22,7 +22,7 @@ function applyKrokedilBlueprintTemplate(builder) {
       step: "defineWpConfigConsts",
       consts: {
         WP_DEBUG: true,
-        WP_DEBUG_DISPLAY: true,
+        WP_DEBUG_DISPLAY: false,
         WP_DEBUG_LOG: "/wordpress/wp-content/uploads/krokedil-wp-ci/debug.log",
         WC_LOG_DIR: "/wordpress/wp-content/uploads/krokedil-wp-ci/wc-logs",
       },
