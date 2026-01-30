@@ -3,7 +3,7 @@
 // Purpose:
 //   Provide a shared helper for writing GitHub Actions job summaries.
 //
-// Inputs:
+// Inputs (params):
 //   - summaryFile: string | undefined (path to GITHUB_STEP_SUMMARY)
 //   - markdownContent: string (already-formatted markdown)
 //   - label: string (optional log label, e.g. "Summary")

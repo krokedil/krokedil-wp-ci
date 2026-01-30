@@ -5,13 +5,21 @@
  * Purpose:
  *   Orchestrate InstaWP site detection/creation and dev-zip deployment.
  *
- * Inputs (environment variables):
+ * Inputs (env vars):
  *   - INSTA_WP_URL         : Optional InstaWP site URL to deploy to
  *   - INSTAWP_API_TOKEN    : InstaWP API token (required)
  *   - AWS_S3_PUBLIC_URL    : Public S3 URL of the dev zip (required)
  *   - PLUGIN_META_JSON     : Plugin metadata for InstaWP settings (required)
  *   - GITHUB_ENV           : Path for GitHub Actions env outputs (optional)
  *   - GITHUB_OUTPUT        : Path for GitHub Actions step outputs (optional)
+ *
+ * Outputs (GITHUB_OUTPUT):
+ *   - instawp_site_id
+ *   - instawp_site_url
+ *   - instawp_site_created
+ *
+ * Environment exports (GITHUB_ENV):
+ *   - INSTA_WP_SITE_ID
  *
  * Behavior:
  *   - Resolves InstaWP metadata, selects or creates a site, uploads the dev zip,

@@ -1,6 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# prepare-plugin-dev-zip.sh
+# ---------------------------------------------------------------------------
+# Purpose:
+#   Prepare a plugin dev zip payload and emit the computed zip file name.
+#
+# Inputs (env vars):
+#   - PLUGIN_SLUG: Plugin slug (required).
+#   - DISTRIBUTION_PLATFORM: Optional platform string (e.g. wordpress-org).
+#   - ZIP_FILE_SUFFIX: Optional suffix (include leading dash yourself).
+#   - GITHUB_REF_NAME/GITHUB_REF, GITHUB_SHA: Used to build the zip name.
+#   - GITHUB_OUTPUT: Path to the step output file (required).
+#
+# Outputs (GITHUB_OUTPUT):
+#   - zip_file_name: Computed dev zip base name (without .zip).
+#
+# External dependencies:
+#   - sed
+#   - rsync (non-wordpress-org packaging)
+#   - npm (when package.json has build:prod)
+#   - composer (when composer.json has build-prod)
+#
+# Behavior:
+#   - Applies a dev version suffix to the main plugin file.
+#   - Runs optional build steps when detected.
+#   - For non-wordpress-org distributions, prepares a zipfile/ staging folder
+#     honoring .distignore/.kernlignore.
+#
+# Failure modes:
+#   - Missing PLUGIN_SLUG exits with code 1.
+#   - Missing npm/composer when a build is required exits with code 1.
+# ---------------------------------------------------------------------------
+
 # Expect PLUGIN_SLUG from env (set by get-plugin-meta.sh step)
 PLUGIN_SLUG="${PLUGIN_SLUG:-}"
 if [ -z "$PLUGIN_SLUG" ]; then

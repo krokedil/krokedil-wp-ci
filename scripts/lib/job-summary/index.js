@@ -3,7 +3,7 @@
 // Purpose:
 //   Public entry point for job summary helpers used by scripts.
 //
-// Inputs:
+// Inputs (params):
 //   - See individual modules for function-specific inputs
 //
 // Behavior:

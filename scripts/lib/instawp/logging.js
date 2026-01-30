@@ -3,7 +3,7 @@
 // Purpose:
 //   Provide consistent GitHub Actions log helpers for InstaWP scripts.
 //
-// Inputs:
+// Inputs (params):
 //   - message strings for info/warn/error
 //   - group labels for log grouping
 //

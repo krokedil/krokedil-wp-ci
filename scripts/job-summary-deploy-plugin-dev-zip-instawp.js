@@ -6,7 +6,7 @@
  *   Produce a concise GitHub Actions Job Summary after deploying a dev zip
  *   to an InstaWP site (either existing or newly created).
  *
- * Inputs (environment variables):
+ * Inputs (env vars):
  *   - INSTAWP_SITE_URL     : URL of the InstaWP site that received the dev zip.
  *   - INSTAWP_SITE_ID      : InstaWP internal site id (for dashboard link).
  *   - INSTAWP_SITE_CREATED : 'true' if a new site was created, otherwise 'false'
@@ -19,7 +19,10 @@
  *   3. Writes a short markdown summary with a link to the InstaWP site and its
  *      dashboard.
  *
- * Failure Modes:
+ * Outputs:
+ *   - None (summary-only)
+ *
+ * Failure modes:
  *   - Missing GITHUB_STEP_SUMMARY => prints summary to stdout instead (non-fatal).
  *   - Missing siteUrl or siteId   => logs a warning but still exits 0.
  *

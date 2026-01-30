@@ -4,7 +4,7 @@
 //   Provide a small InstaWP API client with logging and retries for site
 //   creation, site lookups, and command execution.
 //
-// Inputs:
+// Inputs (params):
 //   - apiToken (string): InstaWP API token
 //   - host (string, optional): API host (default: app.instawp.io)
 //   - logger (object): logInfo/logWarn/logError/logGroupStart/logGroupEnd

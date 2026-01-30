@@ -4,7 +4,7 @@
 //   Extract InstaWP-specific settings from PLUGIN_META_JSON and environment
 //   variables in a stable, reusable shape.
 //
-// Inputs:
+// Inputs (params):
 //   - meta object from scripts/lib/plugin-meta.loadMeta()
 //   - env object (defaults to process.env)
 //

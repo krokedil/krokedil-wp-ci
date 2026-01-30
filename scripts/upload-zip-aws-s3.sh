@@ -1,6 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# upload-zip-aws-s3.sh
+# ---------------------------------------------------------------------------
+# Purpose:
+#   Zip the prepared plugin payload and upload it to the shared S3 bucket.
+#
+# Inputs (env vars):
+#   - PLUGIN_SLUG: Plugin slug (required).
+#   - ZIP_FILE_NAME: Base name (without .zip) for the archive (required).
+#   - GITHUB_OUTPUT: Path to the step output file (required).
+#
+# Outputs (GITHUB_OUTPUT):
+#   - aws_s3_public_url: Public URL to the uploaded zip.
+#
+# External dependencies:
+#   - zip
+#   - aws (AWS CLI)
+#
+# Behavior:
+#   - Zips zipfile/<PLUGIN_SLUG> into <ZIP_FILE_NAME>.zip
+#   - Uploads the archive to the krokedil-plugin-dev-zip S3 bucket.
+#
+# Failure modes:
+#   - Missing required env vars exits with code 1.
+#   - Missing zip/aws CLI or upload failures exit with code 1.
+# ---------------------------------------------------------------------------
+
 # Expect PLUGIN_SLUG from env (set by meta step)
 PLUGIN_SLUG="${PLUGIN_SLUG:-}"
 if [ -z "$PLUGIN_SLUG" ]; then

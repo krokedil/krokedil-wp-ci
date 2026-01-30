@@ -6,7 +6,7 @@
  *   Produce a rich GitHub Actions Job Summary (and optional output variable)
  *   after building a development plugin zip.
  *
- * Inputs (environment variables):
+ * Inputs (env vars):
  *   - ZIP_FILE_NAME        : Base name (without .zip) of the generated dev zip.
  *   - AWS_S3_PUBLIC_URL    : Public S3 URL to the zip (optional; enables playground install).
  *   - PLUGIN_META_JSON     : Raw JSON string with plugin metadata (optional). If present,
@@ -15,13 +15,9 @@
  *                               playground.preferredVersions.php (string)
  *                               playground.landingPage (string)
  *   - GITHUB_STEP_SUMMARY  : Path to summary file (GitHub provides automatically).
- *   - GITHUB_OUTPUT        : Path for step outputs (GitHub provides automatically).
  *
- * Output (step output when available):
- *   - playground_minimal_url : A blueprint URL pointing to WordPress Playground with:
- *       * WooCommerce installed
- *       * Your dev plugin zip installed and activated
- *       * Basic site setup tweaks (permalink structure, product, pages)
+ * Outputs:
+ *   - None (summary-only)
  *
  * Behavior:
  *   1. Reads metadata only if PLUGIN_META_JSON is set.
@@ -29,12 +25,12 @@
  *   3. Builds a blueprint object, base64 encodes it, forms final URL (if AWS_S3_PUBLIC_URL is set).
  *   4. Writes a markdown summary with download link and (if available) playground link.
  *
- * Failure Modes:
+ * Failure modes:
  *   - Malformed PLUGIN_META_JSON => log error & exit(1).
  *   - Missing AWS_S3_PUBLIC_URL => no Playground URL emitted.
  *   - Missing summary file path => prints to stdout instead (non-fatal).
  *
- * Safety / Size:
+ * Safety/size:
  *   Blueprint JSON is base64 encoded directly. Keep steps minimal to avoid very large
  *   blueprint strings (WordPress Playground handles moderately sized blueprints well).
  *

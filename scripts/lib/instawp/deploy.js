@@ -3,7 +3,7 @@
 // Purpose:
 //   Orchestrate InstaWP site selection/creation and dev-zip deployment.
 //
-// Inputs:
+// Inputs (params):
 //   - instawpUrl: optional InstaWP site URL
 //   - awsS3PublicUrl: required S3 URL to the dev zip
 //   - metaConfig: InstaWP metadata-derived settings
