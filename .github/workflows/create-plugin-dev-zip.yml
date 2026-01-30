@@ -137,7 +137,6 @@ jobs:
           npx playwright test --config=end-to-end/playwright.config.ts
 
       - name: Upload Playwright test reports
-        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: e2e-test-reports-${{ steps.prepare.outputs.zip_file_name }}
