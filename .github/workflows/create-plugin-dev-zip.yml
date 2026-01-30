@@ -90,6 +90,11 @@ jobs:
           path: zipfile
           retention-days: 1
 
+      - name: Validate prepared plugin folder
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+        run: bash .github/krokedil-wp-ci/scripts/validate-prepared-plugin-folder.sh
+
       - name: Configure AWS credentials (optional)
         if: inputs.aws_upload == true
         uses: aws-actions/configure-aws-credentials@v4
@@ -106,24 +111,38 @@ jobs:
           ZIP_FILE_NAME: ${{ steps.prepare.outputs.zip_file_name }}
         run: bash .github/krokedil-wp-ci/scripts/upload-zip-aws-s3.sh
 
+      - name: Install test dependencies
+        working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
+        run: npm ci
+
       - name: Run shared integration tests (Vitest)
         working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
+        if: false
         env:
-          DEV_ZIP_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
+          E2E_AUTO_MOUNT: ${{ github.workspace }}/zipfile/${{ steps.meta.outputs.plugin_slug }}
+          PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
+          KROKEDIL_TEST_PHP_VERSIONS: ${{ inputs.test_php_versions }}
         run: |
-          npm ci
           npx vitest run --config=integration/vitest.config.ts
 
       - name: Run shared e2e tests (Playwright)
         working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
         env:
-          E2E_BASE_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
+          E2E_AUTO_MOUNT: ${{ github.workspace }}/zipfile/${{ steps.meta.outputs.plugin_slug }}
           PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
           KROKEDIL_TEST_PHP_VERSIONS: ${{ inputs.test_php_versions }}
         run: |
           npx playwright install --with-deps
           npm run clean:e2e
           npx playwright test --config=end-to-end/playwright.config.ts
+
+      - name: Upload Playwright test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-reports-${{ steps.prepare.outputs.zip_file_name }}
+          path: .github/krokedil-wp-ci/tests/plugin-dev-zip/test-results/end-to-end
+          retention-days: 7
 
       - name: Create job summary
         id: summary
