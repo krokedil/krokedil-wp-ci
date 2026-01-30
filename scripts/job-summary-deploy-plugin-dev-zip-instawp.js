@@ -26,7 +26,7 @@
  * ---------------------------------------------------------------------------
  */
 
-const fs = require("fs");
+const { writeJobSummary } = require("./lib/job-summary");
 
 // ---------------------------------------------------------------------------
 // Environment extraction & basic presence checks
@@ -39,7 +39,7 @@ const siteNewOrExisting = siteCreated === "true" ? "new" : "existing";
 
 if (!siteUrl || !siteId) {
   console.warn(
-    "[summary] Missing INSTAWP_SITE_URL or INSTAWP_SITE_ID; summary will be minimal."
+    "[summary] Missing INSTAWP_SITE_URL or INSTAWP_SITE_ID; summary will be minimal.",
   );
 }
 
@@ -53,11 +53,11 @@ if (siteUrl && siteId) {
   lines.push(
     `Dev zip has been deployed to a ${siteNewOrExisting} InstaWP site ` +
       `[${siteUrl}](${siteUrl}) ` +
-      `([InstaWP dashboard link](https://app.instawp.io/sites/${siteId}/dashboard?tab=all)).`
+      `([InstaWP dashboard link](https://app.instawp.io/sites/${siteId}/dashboard?tab=all)).`,
   );
 } else {
   lines.push(
-    "Dev zip deployment to InstaWP completed, but site details were not fully available."
+    "Dev zip deployment to InstaWP completed, but site details were not fully available.",
   );
 }
 
@@ -66,14 +66,4 @@ const markdownContent = lines.join("\n") + "\n";
 // ---------------------------------------------------------------------------
 // Write summary (or fallback to stdout if GITHUB_STEP_SUMMARY missing).
 // ---------------------------------------------------------------------------
-if (summaryFile) {
-  try {
-    fs.appendFileSync(summaryFile, markdownContent);
-    console.log("Summary written.");
-  } catch (e) {
-    console.error("Failed writing summary:", e.message);
-  }
-} else {
-  console.warn("GITHUB_STEP_SUMMARY not set; printing summary to stdout");
-  console.log(markdownContent);
-}
+writeJobSummary({ summaryFile, markdownContent });

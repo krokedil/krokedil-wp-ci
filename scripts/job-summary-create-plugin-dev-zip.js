@@ -40,8 +40,8 @@
  *
  * ---------------------------------------------------------------------------
  */
-const fs = require("fs");
 const { loadMeta, getOptionalString } = require("./lib/plugin-meta");
+const { writeJobSummary } = require("./lib/job-summary");
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
@@ -149,17 +149,7 @@ async function main() {
   // ---------------------------------------------------------------------------
   // Write summary (or fallback to stdout if GITHUB_STEP_SUMMARY missing).
   // ---------------------------------------------------------------------------
-  if (summaryFile) {
-    try {
-      fs.appendFileSync(summaryFile, markdownContent);
-      console.log("Summary written.");
-    } catch (e) {
-      console.error("Failed writing summary:", e.message);
-    }
-  } else {
-    console.warn("GITHUB_STEP_SUMMARY not set; printing summary to stdout");
-    console.log(markdownContent);
-  }
+  writeJobSummary({ summaryFile, markdownContent });
 }
 
 main().catch((e) => {
