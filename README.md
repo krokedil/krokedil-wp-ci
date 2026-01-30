@@ -125,6 +125,16 @@ This repo expects Node.js 20+ (see `.nvmrc` and `package.json#engines`).
   - `cd tests/plugin-dev-zip && npm test`
   - e2e against the dummy fixture plugin: `cd tests/plugin-dev-zip && npm run test:e2e:fixture`
 
+E2E PHP versions:
+
+- Default is PHP 8.3.
+- Override with `KROKEDIL_TEST_PHP_VERSIONS=8.2,8.3` or `KROKEDIL_TEST_PHP_VERSIONS=all`.
+- Update the supported list in [tests/plugin-dev-zip/end-to-end/playwright.config.ts](tests/plugin-dev-zip/end-to-end/playwright.config.ts) when `@wp-playground/cli` adds/removes PHP versions.
+
+Reusable workflow input:
+
+- Set `with: test_php_versions: "8.2,8.3"` (or `"all"`) when calling `create-plugin-dev-zip.yml` to control the Playwright PHP matrix.
+
 If you see errors like `node: bad option: --test`, you're running an older Node version.
 
 ## Examples

@@ -118,23 +118,42 @@ export default defineConfig({
      * Keep this list aligned with the versions supported by WordPress Playground
      * (and include deprecated versions as long as Playground still supports them).
      *
-     * Can be overridden with `KROKEDIL_PHP_VERSIONS=8.2,8.3`.
+     * Defaults to PHP 8.3.
+     * Override with `KROKEDIL_TEST_PHP_VERSIONS=8.2,8.3` or `KROKEDIL_TEST_PHP_VERSIONS=all`.
      */
     const all = ["8.4", "8.3", "8.2", "8.1", "8.0", "7.4"];
+    const defaultVersions = ["8.3"];
 
-    // Optional filter: comma-separated list, e.g. "8.2,8.3".
-    const filter = process.env.KROKEDIL_PHP_VERSIONS?.split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const raw = process.env.KROKEDIL_TEST_PHP_VERSIONS?.trim();
+    const isAll = raw?.toLowerCase() === "all";
+    const requested = raw
+      ? raw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
 
-    const versions = filter?.length
-      ? all.filter((v) => filter.includes(v))
-      : all;
+    if (raw && !isAll) {
+      const unsupported = requested.filter((v) => !all.includes(v));
+      if (unsupported.length) {
+        console.warn(
+          `[playwright] Ignoring unsupported PHP versions: ${unsupported.join(
+            ", ",
+          )}. Supported: ${all.join(", ")}.`,
+        );
+      }
+    }
+
+    const versions = !raw
+      ? defaultVersions
+      : isAll
+        ? all
+        : all.filter((v) => requested.includes(v));
 
     if (!versions.length) {
       throw new Error(
         `No PHP versions selected. Supported: ${all.join(", ")}. ` +
-          `Filter: ${process.env.KROKEDIL_PHP_VERSIONS ?? "(not set)"}`,
+          `Filter: ${process.env.KROKEDIL_TEST_PHP_VERSIONS ?? "(not set)"}`,
       );
     }
 

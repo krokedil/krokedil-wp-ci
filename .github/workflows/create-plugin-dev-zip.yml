@@ -12,6 +12,11 @@ on:
         type: string
         default: ""
         description: "Optional suffix appended to the base zip name; include leading dash yourself (e.g. -temp, -beta1). Leave empty for none."
+      test_php_versions:
+        required: false
+        type: string
+        default: "8.3"
+        description: "PHP versions used for basic testing of the plugin dev zip: 8.4,8.3,8.2,8.1,8.0,7.4 (comma-separated) or 'all'."
     secrets:
       AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP:
         required: false
@@ -47,11 +52,11 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .github/krokedil-wp-ci/.nvmrc
 
       - name: Install CI helper dependencies
         working-directory: .github/krokedil-wp-ci
-        run: npm install
+        run: npm ci
 
       - name: Get plugin meta
         id: meta
@@ -114,6 +119,7 @@ jobs:
         env:
           E2E_BASE_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
           PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
+          KROKEDIL_TEST_PHP_VERSIONS: ${{ inputs.test_php_versions }}
         run: |
           npx playwright install --with-deps
           npm run clean:e2e
