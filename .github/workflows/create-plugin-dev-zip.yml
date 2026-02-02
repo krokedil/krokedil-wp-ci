@@ -138,6 +138,7 @@ jobs:
           npx playwright test --config=end-to-end/playwright.config.ts
 
       - name: Upload Playwright test reports
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: e2e-test-reports-${{ steps.prepare.outputs.zip_file_name }}
@@ -145,6 +146,7 @@ jobs:
           retention-days: 7
 
       - name: Create job summary
+        if: ${{ always() }}
         id: summary
         env:
           PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
