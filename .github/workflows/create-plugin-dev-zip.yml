@@ -44,7 +44,12 @@ jobs:
 
       - name: Resolve CI helpers ref
         id: ci_helpers_ref
-        run: echo "ref=${GITHUB_WORKFLOW_REF#*@}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [[ "$GITHUB_WORKFLOW_REF" == *"krokedil/krokedil-wp-ci/.github/workflows/"* ]]; then
+            echo "ref=${GITHUB_WORKFLOW_REF#*@}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Checkout CI helpers
         uses: actions/checkout@v4
