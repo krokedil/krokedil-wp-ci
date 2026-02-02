@@ -41,21 +41,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Resolve CI helpers ref
-        id: ci_helpers_ref
-        run: |
-          if [[ "$GITHUB_WORKFLOW_REF" == *"krokedil/krokedil-wp-ci/.github/workflows/"* ]]; then
-            echo "ref=${GITHUB_WORKFLOW_REF#*@}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=main" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout CI helpers
         uses: actions/checkout@v4
         with:
           repository: krokedil/krokedil-wp-ci
           path: .github/krokedil-wp-ci
-          ref: ${{ steps.ci_helpers_ref.outputs.ref }}
+          ref: develop-tests
           fetch-depth: 1
 
       - name: Set up Node.js
