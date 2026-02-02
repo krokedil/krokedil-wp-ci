@@ -41,12 +41,16 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Resolve CI helpers ref
+        id: ci_helpers_ref
+        run: echo "ref=${GITHUB_WORKFLOW_REF#*@}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout CI helpers
         uses: actions/checkout@v4
         with:
           repository: krokedil/krokedil-wp-ci
           path: .github/krokedil-wp-ci
-          ref: ${{ github.workflow_sha }}
+          ref: ${{ steps.ci_helpers_ref.outputs.ref }}
           fetch-depth: 1
 
       - name: Set up Node.js
