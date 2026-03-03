@@ -9,6 +9,7 @@
  * Inputs (env vars):
  *   - ZIP_FILE_NAME        : Base name (without .zip) of the generated dev zip.
  *   - AWS_S3_PUBLIC_URL    : Public S3 URL to the zip (optional; enables playground install).
+ *   - PLAYWRIGHT_REPORT_URL: Public URL to the Playwright HTML report (optional).
  *   - PLUGIN_META_JSON     : Raw JSON string with plugin metadata (optional). If present,
  *                            it may include overrides for:
  *                               playground.preferredVersions.wp (string)
@@ -50,6 +51,7 @@ async function main() {
   const summaryFile = process.env.GITHUB_STEP_SUMMARY; // Where markdown summary is appended
   const ZIP_FILE_NAME = process.env.ZIP_FILE_NAME || ""; // Name of built zip (without .zip)
   const AWS_S3_PUBLIC_URL = process.env.AWS_S3_PUBLIC_URL || ""; // Public URL to zip (optional)
+  const PLAYWRIGHT_REPORT_URL = process.env.PLAYWRIGHT_REPORT_URL || ""; // Public URL to HTML report
   const rawMetaProvided = !!process.env.PLUGIN_META_JSON; // Whether plugin meta was supplied
 
   // ---------------------------------------------------------------------------
@@ -121,6 +123,11 @@ async function main() {
       lines.push("Dev zip created locally (no S3 upload requested). ");
       lines.push(`* ${ZIP_FILE_NAME}.zip`);
     }
+  }
+
+  if (PLAYWRIGHT_REPORT_URL) {
+    lines.push("\n## Playwright HTML report");
+    lines.push(`* [View Playwright report](${PLAYWRIGHT_REPORT_URL})`);
   }
   lines.push(
     "\nDocumentation about how to install the dev zip can be found [here](https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/).",
