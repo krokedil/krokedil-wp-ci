@@ -103,7 +103,7 @@ jobs:
       - name: Upload prepared plugin as artifact (non-WordPress.org)
         id: upload-non-wp-org
         if: steps.meta.outputs.distribution_platform != 'wordpress-org'
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: ${{ steps.prepare.outputs.zip_file_name }}
           path: zipfile
@@ -135,7 +135,7 @@ jobs:
         run: npm ci
 
       - name: Cache Playwright browsers
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('.github/krokedil-wp-ci/tests/plugin-dev-zip/package-lock.json') }}
@@ -145,7 +145,7 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Cache Playground snapshots
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: .github/krokedil-wp-ci/tests/plugin-dev-zip/playground-snapshots
           key: playground-${{ runner.os }}-${{ hashFiles('zipfile/**', '.github/krokedil-wp-ci/scripts/lib/playground/**') }}
@@ -174,7 +174,7 @@ jobs:
 
       - name: Upload Playwright test reports
         if: ${{ always() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: e2e-test-reports-${{ steps.prepare.outputs.zip_file_name }}
           path: .github/krokedil-wp-ci/tests/plugin-dev-zip/test-results/end-to-end
