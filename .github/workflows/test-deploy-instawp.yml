@@ -1,5 +1,6 @@
 name: "Test: Deploy to InstaWP"
-
+permissions:
+  contents: read
 on:
   workflow_dispatch:
     inputs:

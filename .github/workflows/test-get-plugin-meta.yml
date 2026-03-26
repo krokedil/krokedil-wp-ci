@@ -1,5 +1,6 @@
 name: "Test: Get Plugin Meta"
-
+permissions:
+  contents: read
 on:
   workflow_dispatch:
 

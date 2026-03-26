@@ -1,4 +1,6 @@
 name: Get Plugin Meta
+permissions:
+  contents: read
 on:
   workflow_call:
     inputs:
@@ -26,15 +28,16 @@ jobs:
       plugin_meta_json: ${{ steps.read.outputs.plugin_meta_json }}
     steps:
       - name: Checkout plugin repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 1
 
       - name: Checkout CI helpers
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           repository: krokedil/krokedil-wp-ci
           path: .github/krokedil-wp-ci
+          ref: develop-tests
           fetch-depth: 1
 
       - name: Set up fixture plugin for testing
