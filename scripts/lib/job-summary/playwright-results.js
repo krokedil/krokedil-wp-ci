@@ -441,21 +441,13 @@ function buildPlaywrightSummaryMarkdown({ reportUrl } = {}) {
   }
 
   // -------------------------------------------------------------------------
-  // Collapsible HTML report link
+  // HTML report link
   // -------------------------------------------------------------------------
   if (reportUrl) {
     lines.push("");
-    lines.push("<details>");
     lines.push(
-      "<summary>View Playwright HTML report and/or e2e-test-reports artifact for full testing details</summary>",
+      `View Playwright HTML report and/or e2e-test-reports artifact for full testing details: [View Playwright report](${reportUrl}) (available for 8 days)`,
     );
-    lines.push("");
-    lines.push(
-      `Report available for 8 days: [View Playwright report](${reportUrl})`,
-    );
-    lines.push("</details>");
-    // GitHub markdown requires a blank line after </details> to resume rendering.
-    lines.push("");
   }
 
   return lines.join("\n");
