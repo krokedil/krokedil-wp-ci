@@ -454,6 +454,8 @@ function buildPlaywrightSummaryMarkdown({ reportUrl } = {}) {
       `Report available for 8 days: [View Playwright report](${reportUrl})`,
     );
     lines.push("</details>");
+    // GitHub markdown requires a blank line after </details> to resume rendering.
+    lines.push("");
   }
 
   return lines.join("\n");

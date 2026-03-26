@@ -140,7 +140,7 @@ async function main() {
   const phpVersionDisplay = phpVersion || "latest";
 
   if (PLAYGROUND_MINIMAL_URL) {
-    lines.push("## Test dev zip using WordPress Playground (experimental)");
+    lines.push("\n## Test dev zip using WordPress Playground (experimental)");
     lines.push(
       "You can test the created dev zip directly in [WordPress Playground](https://wordpress.org/playground/), which is an experimental project and functionality can be limited, through the links below:",
     );
