@@ -26,12 +26,12 @@ jobs:
       plugin_meta_json: ${{ steps.read.outputs.plugin_meta_json }}
     steps:
       - name: Checkout plugin repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
       - name: Checkout CI helpers
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: krokedil/krokedil-wp-ci
           path: .github/krokedil-wp-ci

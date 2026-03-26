@@ -42,12 +42,12 @@ jobs:
       instawp_site_created: ${{ steps.deploy_instawp.outputs.site_created }}
     steps:
       - name: Checkout plugin repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
       - name: Checkout CI helpers
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: krokedil/krokedil-wp-ci
           path: .github/krokedil-wp-ci
@@ -62,7 +62,7 @@ jobs:
           cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.kernlignore .
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: .github/krokedil-wp-ci/.nvmrc
 
@@ -96,14 +96,14 @@ jobs:
       - name: Upload prepared plugin as artifact (non-WordPress.org)
         id: upload-non-wp-org
         if: steps.meta.outputs.distribution_platform != 'wordpress-org'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.prepare.outputs.zip_file_name }}
           path: zipfile
           retention-days: 1
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP }}
