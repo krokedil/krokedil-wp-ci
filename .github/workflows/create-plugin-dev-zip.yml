@@ -17,6 +17,11 @@ on:
         type: string
         default: "8.3"
         description: "PHP versions used for basic testing of the plugin dev zip: 8.4,8.3,8.2,8.1,8.0,7.4 (comma-separated) or 'all'."
+      use_fixture_plugin:
+        required: false
+        type: boolean
+        default: false
+        description: "If true, use the dummy fixture plugin from this repo instead of the caller's plugin. Used for testing the workflow itself."
     secrets:
       AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP:
         required: false
@@ -49,6 +54,12 @@ jobs:
           path: .github/krokedil-wp-ci
           ref: develop-tests
           fetch-depth: 1
+
+      - name: Set up fixture plugin for testing
+        if: inputs.use_fixture_plugin
+        run: |
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/dummy-plugin-for-repo-tests.php .
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.github/plugin-meta.json .github/plugin-meta.json
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -146,10 +157,9 @@ jobs:
           retention-days: 7
 
       - name: Upload Playwright HTML report to S3
-        if: ${{ always() }}
+        if: inputs.aws_upload == true
         id: upload_playwright_report
         env:
-          ZIP_FILE_NAME: ${{ steps.prepare.outputs.zip_file_name }}
           PLAYWRIGHT_REPORT_DIR: .github/krokedil-wp-ci/tests/plugin-dev-zip/test-results/end-to-end/html-report
         run: bash .github/krokedil-wp-ci/scripts/upload-playwright-report-aws-s3.sh
 

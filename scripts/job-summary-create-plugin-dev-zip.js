@@ -127,6 +127,9 @@ async function main() {
 
   if (PLAYWRIGHT_REPORT_URL) {
     lines.push("\n## Playwright HTML report");
+    lines.push(
+      "View the Playwright test report through the link below, which is available for 8 days:",
+    );
     lines.push(`* [View Playwright report](${PLAYWRIGHT_REPORT_URL})`);
   }
   lines.push(

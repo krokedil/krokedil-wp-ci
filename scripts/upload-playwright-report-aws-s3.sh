@@ -4,22 +4,26 @@ set -euo pipefail
 # upload-playwright-report-aws-s3.sh
 # ---------------------------------------------------------------------------
 # Purpose:
-#   Upload the Playwright HTML report directory to the shared S3 bucket.
+#   Upload the Playwright HTML report directory to the shared S3 bucket,
+#   served via a CloudFront distribution with htaccess auth.
 #
 # Inputs (env vars):
-#   - ZIP_FILE_NAME: Base name (without .zip) for the dev zip (required).
+#   - GITHUB_REPOSITORY: GitHub repository (owner/repo), repo name extracted as folder prefix (required).
+#   - GITHUB_RUN_ID: Unique GitHub Actions run ID for the folder path (required).
 #   - PLAYWRIGHT_REPORT_DIR: Path to Playwright HTML report folder (optional).
 #   - GITHUB_OUTPUT: Path to the step output file (required).
 #
 # Outputs (GITHUB_OUTPUT):
-#   - playwright_report_url: Public URL to the report index.html (empty if skipped).
+#   - playwright_report_url: CloudFront URL to the report index.html (empty if skipped).
 #
 # External dependencies:
 #   - aws (AWS CLI)
 #
 # Behavior:
-#   - Uploads the HTML report folder to the krokedil-plugin-dev-zip S3 bucket.
-#   - Writes the public index.html URL to GITHUB_OUTPUT.
+#   - Uploads the HTML report folder contents directly (not zipped) to the
+#     krokedil-plugin-test-reports S3 bucket under a unique path using
+#     the GitHub Actions run ID.
+#   - Writes the CloudFront index.html URL to GITHUB_OUTPUT.
 #   - If the report folder is missing, emits a notice and skips upload.
 #
 # Failure modes:
@@ -27,9 +31,15 @@ set -euo pipefail
 #   - Upload failures exit with code 1.
 # ---------------------------------------------------------------------------
 
-ZIP_FILE_NAME="${ZIP_FILE_NAME:-}"
-if [ -z "$ZIP_FILE_NAME" ]; then
-  echo "::error::ZIP_FILE_NAME env not set (run prepare step first)" >&2
+GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-}"
+if [ -z "$GITHUB_REPOSITORY" ]; then
+  echo "::error::GITHUB_REPOSITORY env not set" >&2
+  exit 1
+fi
+
+GITHUB_RUN_ID="${GITHUB_RUN_ID:-}"
+if [ -z "$GITHUB_RUN_ID" ]; then
+  echo "::error::GITHUB_RUN_ID env not set" >&2
   exit 1
 fi
 
@@ -52,7 +62,9 @@ if [ ! -f "$PLAYWRIGHT_REPORT_DIR/index.html" ]; then
   exit 0
 fi
 
-S3_PREFIX="reports/${ZIP_FILE_NAME}/playwright-html"
-aws s3 sync "$PLAYWRIGHT_REPORT_DIR" "s3://krokedil-plugin-dev-zip/${S3_PREFIX}" --delete
+S3_BUCKET="krokedil-plugin-test-reports"
+REPO_NAME="${GITHUB_REPOSITORY#*/}"
+S3_PREFIX="${REPO_NAME}/${GITHUB_RUN_ID}"
+aws s3 sync "$PLAYWRIGHT_REPORT_DIR" "s3://${S3_BUCKET}/${S3_PREFIX}" --delete
 
-echo "playwright_report_url=https://krokedil-plugin-dev-zip.s3.eu-north-1.amazonaws.com/${S3_PREFIX}/index.html" >> "$GITHUB_OUTPUT"
+echo "playwright_report_url=https://d3o3efwqkax368.cloudfront.net/${S3_PREFIX}/index.html" >> "$GITHUB_OUTPUT"
