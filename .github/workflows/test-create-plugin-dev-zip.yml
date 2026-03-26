@@ -7,7 +7,7 @@ on:
         required: false
         type: string
         default: "8.3"
-        description: "PHP versions for testing (comma-separated) or 'all'."
+        description: "PHP versions used for basic testing of the plugin dev zip: 8.4,8.3,8.2,8.1,8.0,7.4 (comma-separated) or 'all'."
 
 jobs:
   test:
