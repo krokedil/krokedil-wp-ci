@@ -1,10 +1,6 @@
-import { runCLI, RunCLIServer } from "@wp-playground/cli";
-import {
-  SupportedPHPVersions,
-  type PHP,
-  type PHPRequestHandler,
-} from "@php-wasm/universal";
-import { copyFileSync, unlinkSync } from "fs";
+import { runCLI, type RunCLIServer } from "@wp-playground/cli";
+import { SupportedPHPVersions } from "@php-wasm/universal";
+import { copyFileSync, existsSync, mkdirSync, unlinkSync } from "fs";
 import { join, resolve } from "path";
 import {
   afterEach,
@@ -24,16 +20,13 @@ const wpConfigPath = join(snapshotDir, "wordpress", "wp-config.php");
 
 describe("Using Snapshots", () => {
   beforeAll(async () => {
-    try {
-      await runCLI({
-        command: "build-snapshot",
-        outfile: snapshotPath,
-        quiet: true,
-      });
-    } catch (error) {
-      // runCLI exits with a error that needs to be fixed in Playground
-      // Error: process.exit unexpectedly called with "0"
-    }
+    mkdirSync(resolve("./tests/integration"), { recursive: true });
+
+    await runCLI({
+      command: "build-snapshot",
+      outfile: snapshotPath,
+      quiet: true,
+    });
 
     // extract the snapshot zip
     await createReadStream(snapshotPath)
@@ -41,10 +34,12 @@ describe("Using Snapshots", () => {
       .promise();
 
     // Create the wp-config.php file
-    copyFileSync(
-      join(snapshotDir, "wordpress", "wp-config-sample.php"),
-      wpConfigPath,
-    );
+    if (!existsSync(wpConfigPath)) {
+      copyFileSync(
+        join(snapshotDir, "wordpress", "wp-config-sample.php"),
+        wpConfigPath,
+      );
+    }
 
     // remove the zip file
     unlinkSync(snapshotPath);
@@ -53,13 +48,11 @@ describe("Using Snapshots", () => {
   SupportedPHPVersions.forEach((phpVersion) => {
     describe(`PHP ${phpVersion}`, () => {
       let cliServer: RunCLIServer;
-      let handler: PHPRequestHandler;
-      let php: PHP;
 
       beforeEach(async () => {
         cliServer = await runCLI({
           command: "server",
-          mountBeforeInstall: [
+          "mount-before-install": [
             {
               hostPath: join(snapshotDir, "wordpress"),
               vfsPath: "/wordpress",
@@ -79,11 +72,9 @@ describe("Using Snapshots", () => {
             },
           ],
           php: phpVersion,
-          skipWordPressSetup: true,
+          wordpressInstallMode: "do-not-attempt-installing",
           quiet: true,
         });
-        handler = cliServer.requestHandler;
-        php = await handler.getPrimaryPhp();
 
         /**
          * Due to a Playground bug, the build-snapshot command
@@ -92,7 +83,7 @@ describe("Using Snapshots", () => {
          *
          * https://github.com/WordPress/wordpress-playground/pull/2281#issuecomment-2982892591
          */
-        await activatePlugin(php, {
+        await activatePlugin(cliServer.playground, {
           pluginPath:
             "/wordpress/wp-content/plugins/playground-testing-demo/playground-testing-demo.php",
         });
@@ -101,7 +92,7 @@ describe("Using Snapshots", () => {
         await cliServer.server.close();
       });
       test("Should activate plugin", async () => {
-        const activePlugins = await php.run({
+        const activePlugins = await cliServer.playground.run({
           code: `
 				  <?php
 				  require_once '/wordpress/wp-load.php';

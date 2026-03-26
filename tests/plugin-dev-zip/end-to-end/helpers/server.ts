@@ -87,7 +87,7 @@ export async function startPlaygroundServer(options: {
         vfsPath: "/wordpress/wp-content/uploads/krokedil-wp-ci",
       },
     ],
-    skipWordPressSetup: true,
+    wordpressInstallMode: "do-not-attempt-installing",
     blueprint: options.serverBlueprint,
     quiet: true,
     ...(options.projectPhpVersion ? { php: options.projectPhpVersion } : {}),
