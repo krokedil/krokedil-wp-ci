@@ -1,0 +1,13 @@
+.github/
+.git/
+tests/
+scripts/
+examples/
+node_modules/
+.nvmrc
+.npmrc
+.gitignore
+CLAUDE.md
+README.md
+package.json
+package-lock.json

@@ -59,6 +59,7 @@ jobs:
         run: |
           cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/dummy-plugin-for-repo-tests.php .
           cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.github/plugin-meta.json .github/plugin-meta.json
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.kernlignore .
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
