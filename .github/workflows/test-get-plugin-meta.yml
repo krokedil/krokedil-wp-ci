@@ -1,0 +1,10 @@
+name: "Test: Get Plugin Meta"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    uses: krokedil/krokedil-wp-ci/.github/workflows/get-plugin-meta.yml@develop-tests
+    with:
+      use_fixture_plugin: true
