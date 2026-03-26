@@ -335,12 +335,20 @@ function buildPlaywrightSummaryMarkdown({ reportUrl } = {}) {
   }
 
   const stats = report.stats || {};
-  const { phpVersions, testRows, firstUsedVersionsAnnotation, firstComposerDepsAnnotation } =
-    collectTestData(report);
+  const {
+    phpVersions,
+    testRows,
+    firstUsedVersionsAnnotation,
+    firstComposerDepsAnnotation,
+  } = collectTestData(report);
 
   // If no tests were found at all, show a note.
   if (testRows.size === 0) {
-    const lines = ["## Playwright test results", "", "No test results found in the report."];
+    const lines = [
+      "## Playwright test results",
+      "",
+      "No test results found in the report.",
+    ];
     if (reportUrl) {
       lines.push("");
       lines.push(`[View Playwright report](${reportUrl})`);
@@ -373,7 +381,9 @@ function buildPlaywrightSummaryMarkdown({ reportUrl } = {}) {
       `> ${totalUnexpected} test${totalUnexpected === 1 ? "" : "s"} failed. ${parts.join(", ")} across ${versionCount} PHP ${versionWord} in ${totalDuration}.`,
     );
   } else {
-    const parts = [`${totalExpected} test${totalExpected === 1 ? "" : "s"} passed`];
+    const parts = [
+      `${totalExpected} test${totalExpected === 1 ? "" : "s"} passed`,
+    ];
     if (totalFlaky > 0) parts.push(`${totalFlaky} flaky`);
     lines.push(
       `${parts.join(", ")} across ${versionCount} PHP ${versionWord} in ${totalDuration}.`,
@@ -446,7 +456,7 @@ function buildPlaywrightSummaryMarkdown({ reportUrl } = {}) {
   if (reportUrl) {
     lines.push("");
     lines.push(
-      `View Playwright HTML report and/or e2e-test-reports artifact for full testing details: [View Playwright report](${reportUrl}) (available for 8 days)`,
+      `For full testing details, [view Playwright report here](${reportUrl}) and/or download full e2e-test-reports artifact from this workflow run. Both are available for 7 days.`,
     );
   }
 
