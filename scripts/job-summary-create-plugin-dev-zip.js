@@ -124,7 +124,9 @@ async function main() {
       lines.push(`* ${ZIP_FILE_NAME}.zip`);
     }
   }
-
+  lines.push(
+    "\nDocumentation about how to install the dev zip can be found [here](https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/).",
+  );
   if (PLAYWRIGHT_REPORT_URL) {
     lines.push("\n## Playwright HTML report");
     lines.push(
@@ -132,9 +134,6 @@ async function main() {
     );
     lines.push(`* [View Playwright report](${PLAYWRIGHT_REPORT_URL})`);
   }
-  lines.push(
-    "\nDocumentation about how to install the dev zip can be found [here](https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/).",
-  );
   const wpVersionDisplay = wpVersion || "beta";
   const phpVersionDisplay = phpVersion || "latest";
 
