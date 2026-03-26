@@ -65,6 +65,7 @@ jobs:
           cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/dummy-plugin-for-repo-tests.php .
           cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.github/plugin-meta.json .github/plugin-meta.json
           cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.kernlignore .
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/composer-dependencies.lock .
 
       - name: Set up Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
