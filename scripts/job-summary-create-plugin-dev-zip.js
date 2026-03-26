@@ -10,6 +10,9 @@
  *   - ZIP_FILE_NAME        : Base name (without .zip) of the generated dev zip.
  *   - AWS_S3_PUBLIC_URL    : Public S3 URL to the zip (optional; enables playground install).
  *   - PLAYWRIGHT_REPORT_URL: Public URL to the Playwright HTML report (optional).
+ *                            When a Playwright JSON report exists at the expected path,
+ *                            inline test results, environment info, and Krokedil composer
+ *                            dependencies are rendered from it.
  *   - PLUGIN_META_JSON     : Raw JSON string with plugin metadata (optional). If present,
  *                            it may include overrides for:
  *                               playground.preferredVersions.wp (string)
@@ -38,7 +41,7 @@
  * ---------------------------------------------------------------------------
  */
 const { loadMeta, getOptionalString } = require("./lib/plugin-meta");
-const { writeJobSummary } = require("./lib/job-summary");
+const { writeJobSummary, buildPlaywrightSummaryMarkdown } = require("./lib/job-summary");
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
@@ -127,12 +130,11 @@ async function main() {
   lines.push(
     "\nDocumentation about how to install the dev zip can be found [here](https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/).",
   );
-  if (PLAYWRIGHT_REPORT_URL) {
-    lines.push("\n## Playwright HTML report");
-    lines.push(
-      "View the Playwright test report through the link below, which is available for 8 days:",
-    );
-    lines.push(`* [View Playwright report](${PLAYWRIGHT_REPORT_URL})`);
+  const playwrightSection = buildPlaywrightSummaryMarkdown({
+    reportUrl: PLAYWRIGHT_REPORT_URL,
+  });
+  if (playwrightSection) {
+    lines.push("\n" + playwrightSection);
   }
   const wpVersionDisplay = wpVersion || "beta";
   const phpVersionDisplay = phpVersion || "latest";

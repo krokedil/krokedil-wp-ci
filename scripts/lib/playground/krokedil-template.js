@@ -204,7 +204,15 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 13. Write WooCommerce status report to krokedil-wp-ci folder after blueprint setup
+  // 13. Collect composer-dependencies.lock from all plugins that have one
+  builder.addSteps(!!vars.collect_composer_dependencies, [
+    {
+      step: "runPHP",
+      code: "<?php $result = array(); foreach ( glob( '/wordpress/wp-content/plugins/*/composer-dependencies.lock' ) as $lock_file ) { $slug = basename( dirname( $lock_file ) ); $content = json_decode( file_get_contents( $lock_file ), true ); if ( $content ) { $result[ $slug ] = $content; } } $dir = '/wordpress/wp-content/uploads/krokedil-wp-ci/'; if ( ! file_exists( $dir ) ) { mkdir( $dir, 0777, true ); } file_put_contents( $dir . 'composer-dependencies-all-plugins.json', json_encode( $result, JSON_PRETTY_PRINT ) ); ?>",
+    },
+  ]);
+
+  // 14. Write WooCommerce status report to krokedil-wp-ci folder after blueprint setup
   builder.addSteps(!!vars.generate_wc_status_report, [
     {
       step: "runPHP",

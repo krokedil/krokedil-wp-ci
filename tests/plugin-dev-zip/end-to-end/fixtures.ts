@@ -93,6 +93,7 @@ export type PlaygroundTestContext = {
 const DEFAULT_SERVER_BLUEPRINT_VARS: Record<string, any> = {
   configure_debug_logs: true,
   generate_site_health_report: true,
+  collect_composer_dependencies: true,
   generate_wc_status_report: true,
 };
 

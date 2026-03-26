@@ -66,6 +66,13 @@ export async function attachEndOfTestArtifacts(options: {
         wpSiteHealthInfoJsonText: string;
       }) => UsedVersionsAnnotationResult;
     };
+  const { buildComposerDepsAnnotation } = requireForSharedLib(
+    "../../../../scripts/lib/composer-deps.js",
+  ) as {
+    buildComposerDepsAnnotation: (
+      allPluginsJsonText: string,
+    ) => { annotation: { type: string; description: string }; deps: unknown } | null;
+  };
 
   // wp-site-health-info.json
   const siteHealthInfoPath = resolve(
@@ -113,6 +120,29 @@ export async function attachEndOfTestArtifacts(options: {
         body: usedVersionsJsonText,
         contentType: "application/json",
       });
+    } catch {
+      // Never fail the test due to evidence formatting.
+    }
+  }
+
+  // composer-dependencies-all-plugins.json
+  const composerDepsPath = resolve(
+    perTestLogsDir,
+    "composer-dependencies-all-plugins.json",
+  );
+  if (existsSync(composerDepsPath)) {
+    const composerDepsText = readFileSync(composerDepsPath, "utf8");
+
+    await testInfo.attach("composer-dependencies-all-plugins.json", {
+      body: composerDepsText,
+      contentType: "application/json",
+    });
+
+    try {
+      const result = buildComposerDepsAnnotation(composerDepsText);
+      if (result) {
+        testInfo.annotations.push(result.annotation as any);
+      }
     } catch {
       // Never fail the test due to evidence formatting.
     }

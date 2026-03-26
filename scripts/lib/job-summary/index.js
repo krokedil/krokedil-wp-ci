@@ -14,7 +14,9 @@
 // ---------------------------------------------------------------------------
 
 const { writeJobSummary } = require("./write-summary");
+const { buildPlaywrightSummaryMarkdown } = require("./playwright-results");
 
 module.exports = {
   writeJobSummary,
+  buildPlaywrightSummaryMarkdown,
 };
