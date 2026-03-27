@@ -145,7 +145,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
     ? ` (${phpVersions.join(", ")})`
     : "";
 
-  blocks.push(sectionBlock("*Playwright test results*"));
+  blocks.push(sectionBlock("\n*Playwright test results*"));
   blocks.push(dividerBlock());
 
   if (totalUnexpected > 0) {
@@ -344,7 +344,7 @@ async function main() {
   const wpVersionDisplay = wpVersion || "beta";
   const phpVersionDisplay = phpVersion || "latest";
   if (PLAYGROUND_MINIMAL_URL) {
-    blocks.push(sectionBlock("*Test dev zip using WordPress Playground (experimental)*"));
+    blocks.push(sectionBlock("\n*Test dev zip using WordPress Playground (experimental)*"));
     blocks.push(dividerBlock());
     blocks.push(
       sectionBlock(
