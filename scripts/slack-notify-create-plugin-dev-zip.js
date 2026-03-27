@@ -53,20 +53,6 @@ function escapeSlack(text) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/**
- * Format a test result cell for Slack (emoji + duration).
- * @param {{ status: string, durationMs: number } | undefined} result
- * @returns {string}
- */
-function formatSlackTestResult(result) {
-  if (!result) return "-";
-  if (result.status === "expected")
-    return `:white_check_mark: ${formatDuration(result.durationMs)}`;
-  if (result.status === "flaky")
-    return `:warning: ${formatDuration(result.durationMs)}`;
-  return ":x:";
-}
-
 // ---------------------------------------------------------------------------
 // Playwright section for Slack
 
@@ -81,8 +67,8 @@ function buildPlaywrightSlackSection({ reportUrl } = {}) {
   if (!report) {
     if (reportUrl) {
       return [
-        "*Playwright HTML report*",
-        `<${reportUrl}|View Playwright report> (available 8 days)`,
+        "*Playwright test results*",
+        `For full testing details, view Playwright report <${reportUrl}|here> and/or download full e2e-test-reports artifact from this workflow run. Both are available for 7 days.`,
       ].join("\n");
     }
     return null;
@@ -116,13 +102,17 @@ function buildPlaywrightSlackSection({ reportUrl } = {}) {
   const versionCount = phpVersions.length || 1;
   const versionWord = versionCount === 1 ? "version" : "versions";
 
+  const phpListDisplay = phpVersions.length
+    ? ` (${phpVersions.join(", ")})`
+    : "";
+
   if (totalUnexpected > 0) {
     const parts = [];
     parts.push(`${totalExpected} passed`);
     if (totalFlaky > 0) parts.push(`${totalFlaky} flaky`);
     parts.push(`${totalUnexpected} failed`);
     lines.push(
-      `:rotating_light: ${totalUnexpected} test${totalUnexpected === 1 ? "" : "s"} failed. ${parts.join(", ")} across ${versionCount} PHP ${versionWord} in ${totalDuration}.`,
+      `:rotating_light: ${totalUnexpected} test${totalUnexpected === 1 ? "" : "s"} failed. ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
     );
   } else {
     const parts = [
@@ -130,20 +120,46 @@ function buildPlaywrightSlackSection({ reportUrl } = {}) {
     ];
     if (totalFlaky > 0) parts.push(`${totalFlaky} flaky`);
     lines.push(
-      `:white_check_mark: ${parts.join(", ")} across ${versionCount} PHP ${versionWord} in ${totalDuration}.`,
+      `:white_check_mark: ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
     );
   }
 
-  // Per-test results as bulleted list
-  lines.push("");
+  // Per-test details: only list tests that did not fully pass, with PHP detail.
   const versions = phpVersions.length ? phpVersions : ["default"];
+  const failedTests = [];
+  const flakyTests = [];
   for (const [specTitle, phpResults] of testRows) {
-    const cells = versions.map((v) => {
-      const label = phpVersions.length ? `PHP ${v}` : "";
-      const result = formatSlackTestResult(phpResults.get(v));
-      return label ? `${label} ${result}` : result;
-    });
-    lines.push(`• ${escapeSlack(specTitle)}: ${cells.join(", ")}`);
+    const failedOn = [];
+    const flakyOn = [];
+    for (const v of versions) {
+      const result = phpResults.get(v);
+      if (!result) continue;
+      if (result.status === "unexpected") failedOn.push(v);
+      else if (result.status === "flaky") flakyOn.push(v);
+    }
+    if (failedOn.length) {
+      const detail = phpVersions.length
+        ? ` (PHP ${failedOn.join(", ")})`
+        : "";
+      failedTests.push(`• ${escapeSlack(specTitle)}${detail}`);
+    }
+    if (flakyOn.length) {
+      const detail = phpVersions.length
+        ? ` (PHP ${flakyOn.join(", ")})`
+        : "";
+      flakyTests.push(`• ${escapeSlack(specTitle)}${detail}`);
+    }
+  }
+
+  if (failedTests.length) {
+    lines.push("");
+    lines.push(`:x: Failed:`);
+    lines.push(...failedTests);
+  }
+  if (flakyTests.length) {
+    lines.push("");
+    lines.push(`:warning: Flaky:`);
+    lines.push(...flakyTests);
   }
 
   // Test environment
@@ -177,10 +193,12 @@ function buildPlaywrightSlackSection({ reportUrl } = {}) {
     }
   }
 
-  // HTML report link
+  // HTML report link and artifact note
   if (reportUrl) {
     lines.push("");
-    lines.push(`<${reportUrl}|View Playwright HTML report> (available 8 days)`);
+    lines.push(
+      `For full testing details, view Playwright report <${reportUrl}|here> and/or download full e2e-test-reports artifact from this workflow run. Both are available for 7 days.`,
+    );
   }
 
   return lines.join("\n");
@@ -243,11 +261,12 @@ async function main() {
 
   // Compose Slack mrkdwn message
   const lines = [];
-  lines.push("*Created dev zip*");
+  lines.push(":package: *Created dev zip*");
+  lines.push("———");
   if (ZIP_FILE_NAME) {
     if (AWS_S3_PUBLIC_URL) {
       lines.push(
-        "Download or share URL (available 30 days):",
+        "Download or share URL for created dev zip through the link below, which is available for 30 days:",
       );
       lines.push(`• <${AWS_S3_PUBLIC_URL}|${escapeSlack(ZIP_FILE_NAME)}.zip>`);
     } else {
@@ -256,7 +275,7 @@ async function main() {
     }
   }
   lines.push(
-    `\n<https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/|How to install the dev zip>`,
+    `\nDocumentation about how to install the dev zip can be found <https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/|here>.`,
   );
 
   // Playwright section
@@ -271,9 +290,12 @@ async function main() {
   const wpVersionDisplay = wpVersion || "beta";
   const phpVersionDisplay = phpVersion || "latest";
   if (PLAYGROUND_MINIMAL_URL) {
-    lines.push("\n*Test dev zip using WordPress Playground*");
+    lines.push("\n*Test dev zip using WordPress Playground (experimental)*");
     lines.push(
-      `• <${PLAYGROUND_MINIMAL_URL}|Test in Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
+      `You can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the links below:`,
+    );
+    lines.push(
+      `• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
     );
   }
 

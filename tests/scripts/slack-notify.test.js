@@ -63,7 +63,7 @@ test("outputs valid JSON with a text field", () => {
   assert.ok(result.text.length > 0, "text should not be empty");
 });
 
-test("includes zip name and S3 download link in Slack format", () => {
+test("includes zip name, S3 link, and download text matching GitHub summary", () => {
   const result = runScript({
     ZIP_FILE_NAME: "my-plugin-1.0.0",
     AWS_S3_PUBLIC_URL: "https://s3.example.com/my-plugin-1.0.0.zip",
@@ -72,6 +72,10 @@ test("includes zip name and S3 download link in Slack format", () => {
   assert.ok(
     result.text.includes("<https://s3.example.com/my-plugin-1.0.0.zip|my-plugin-1.0.0.zip>"),
     "should contain Slack-formatted download link",
+  );
+  assert.ok(
+    result.text.includes("Download or share URL for created dev zip through the link below, which is available for 30 days:"),
+    "should match GitHub summary download text",
   );
 });
 
@@ -99,25 +103,33 @@ test("includes workflow run URL at the end", () => {
   );
 });
 
-test("includes documentation link in Slack format", () => {
+test("includes documentation text matching GitHub summary style", () => {
   const result = runScript({
     ZIP_FILE_NAME: "test-plugin",
   });
 
+  assert.ok(
+    result.text.includes("Documentation about how to install the dev zip can be found"),
+    "should contain documentation text",
+  );
   assert.ok(
     result.text.includes("<https://docs.krokedil.com/"),
     "should contain documentation link in Slack format",
   );
 });
 
-test("uses *bold* headings instead of markdown #", () => {
+test("uses emoji + bold heading with divider", () => {
   const result = runScript({
     ZIP_FILE_NAME: "test-plugin",
   });
 
   assert.ok(
-    result.text.includes("*Created dev zip*"),
-    "should use Slack bold for heading",
+    result.text.includes(":package: *Created dev zip*"),
+    "should use emoji + Slack bold for heading",
+  );
+  assert.ok(
+    result.text.includes("———"),
+    "should include divider line after heading",
   );
   assert.ok(
     !result.text.includes("# "),
