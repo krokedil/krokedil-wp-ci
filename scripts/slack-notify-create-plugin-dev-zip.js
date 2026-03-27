@@ -66,6 +66,19 @@ function sectionBlock(mrkdwn) {
   return { type: "section", text: { type: "mrkdwn", text: mrkdwn } };
 }
 
+/**
+ * Section block with two-column fields layout.
+ * @param {Array<{ left: string, right: string }>} rows
+ */
+function fieldsBlock(rows) {
+  const fields = [];
+  for (const { left, right } of rows) {
+    fields.push({ type: "mrkdwn", text: left });
+    fields.push({ type: "mrkdwn", text: right });
+  }
+  return { type: "section", fields };
+}
+
 /** @param {string[]} mrkdwnElements */
 function contextBlock(mrkdwnElements) {
   return {
@@ -92,7 +105,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
   if (!report) {
     if (reportUrl) {
       return [
-        headerBlock("Playwright test results"),
+        sectionBlock("*Playwright test results*"),
         sectionBlock(
           `For full testing details, view Playwright report <${reportUrl}|here> and/or download full e2e-test-reports artifact from this workflow run. Both are available for 7 days.`,
         ),
@@ -111,8 +124,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
 
   if (testRows.size === 0) {
     const blocks = [
-      headerBlock("Playwright test results"),
-      sectionBlock("No test results found in the report."),
+      sectionBlock("*Playwright test results*\n\nNo test results found in the report."),
     ];
     if (reportUrl) {
       blocks.push(sectionBlock(`<${reportUrl}|View Playwright report>`));
@@ -121,9 +133,6 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
   }
 
   const blocks = [];
-
-  // Header
-  blocks.push(headerBlock("Playwright test results"));
 
   // Summary line
   const totalExpected = stats.expected || 0;
@@ -143,7 +152,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
     parts.push(`${totalUnexpected} failed`);
     blocks.push(
       sectionBlock(
-        `:rotating_light: ${totalUnexpected} test${totalUnexpected === 1 ? "" : "s"} failed. ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
+        `*Playwright test results*\n${totalUnexpected} test${totalUnexpected === 1 ? "" : "s"} failed. ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
       ),
     );
   } else {
@@ -153,13 +162,14 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
     if (totalFlaky > 0) parts.push(`${totalFlaky} flaky`);
     blocks.push(
       sectionBlock(
-        `:white_check_mark: ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
+        `*Playwright test results*\n${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
       ),
     );
   }
 
-  // Per-test list: always show every test, with extra detail for non-passing.
-  const testLines = [];
+  // Per-test results as two-column fields (test name left, status right).
+  // Section fields blocks support max 10 fields (5 rows), so chunk if needed.
+  const testFieldRows = [];
   const versions = phpVersions.length ? phpVersions : ["default"];
   for (const [specTitle, phpResults] of testRows) {
     const failedOn = [];
@@ -171,21 +181,28 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
       else if (result.status === "flaky") flakyOn.push(v);
     }
 
+    let right;
     if (failedOn.length) {
       const detail = phpVersions.length
-        ? ` Failed on PHP ${failedOn.join(", ")}`
-        : "";
-      testLines.push(`• ${escapeSlack(specTitle)} :x:${detail}`);
+        ? `Failed on PHP ${failedOn.join(", ")}`
+        : "Failed";
+      right = `:x: ${detail}`;
     } else if (flakyOn.length) {
       const detail = phpVersions.length
-        ? ` Flaky on PHP ${flakyOn.join(", ")}`
-        : "";
-      testLines.push(`• ${escapeSlack(specTitle)} :warning:${detail}`);
+        ? `Flaky on PHP ${flakyOn.join(", ")}`
+        : "Flaky";
+      right = `:warning: ${detail}`;
     } else {
-      testLines.push(`• ${escapeSlack(specTitle)} :white_check_mark:`);
+      right = ":white_check_mark:";
     }
+    testFieldRows.push({ left: escapeSlack(specTitle), right });
   }
-  blocks.push(sectionBlock(testLines.join("\n")));
+
+  // Slack allows max 10 fields per block (= 5 rows of 2 columns).
+  const ROWS_PER_BLOCK = 5;
+  for (let i = 0; i < testFieldRows.length; i += ROWS_PER_BLOCK) {
+    blocks.push(fieldsBlock(testFieldRows.slice(i, i + ROWS_PER_BLOCK)));
+  }
 
   // Test environment
   const env = parseUsedVersionsAnnotation(firstUsedVersionsAnnotation);
@@ -288,8 +305,9 @@ async function main() {
   // Compose Slack Block Kit payload
   const blocks = [];
 
-  // Created dev zip header + content
+  // Created dev zip — only real header + divider in the message
   blocks.push(headerBlock(":package: Created dev zip"));
+  blocks.push(dividerBlock());
   if (ZIP_FILE_NAME) {
     if (AWS_S3_PUBLIC_URL) {
       blocks.push(
@@ -312,7 +330,6 @@ async function main() {
   );
 
   // Playwright section
-  blocks.push(dividerBlock());
   const playwrightBlocks = buildPlaywrightBlocks({
     reportUrl: PLAYWRIGHT_REPORT_URL,
   });
@@ -322,18 +339,15 @@ async function main() {
   const wpVersionDisplay = wpVersion || "beta";
   const phpVersionDisplay = phpVersion || "latest";
   if (PLAYGROUND_MINIMAL_URL) {
-    blocks.push(dividerBlock());
-    blocks.push(headerBlock("Test dev zip using WordPress Playground"));
     blocks.push(
       sectionBlock(
-        `You can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the links below:\n• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
+        `*Test dev zip using WordPress Playground (experimental)*\nYou can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the links below:\n• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
       ),
     );
   }
 
   // Triggered by workflow run (always last)
   if (WORKFLOW_RUN_URL) {
-    blocks.push(dividerBlock());
     blocks.push(
       contextBlock([`_Triggered by workflow run:_ ${WORKFLOW_RUN_URL}`]),
     );

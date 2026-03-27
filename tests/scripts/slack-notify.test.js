@@ -62,6 +62,11 @@ function allBlockText(blocks) {
   const parts = [];
   for (const block of blocks) {
     if (block.text?.text) parts.push(block.text.text);
+    if (block.fields) {
+      for (const field of block.fields) {
+        if (field.text) parts.push(field.text);
+      }
+    }
     if (block.elements) {
       for (const el of block.elements) {
         if (el.text) parts.push(el.text);
@@ -83,22 +88,32 @@ test("outputs valid Block Kit payload with text fallback and blocks array", () =
   assert.ok(result.blocks.length > 0, "blocks should not be empty");
 });
 
-test("has header block for Created dev zip", () => {
+test("has exactly one header block for Created dev zip followed by a divider", () => {
   const result = runScript({ ZIP_FILE_NAME: "test-plugin" });
 
   const headers = result.blocks.filter((b) => b.type === "header");
-  const headerTexts = headers.map((h) => h.text.text);
+  assert.equal(headers.length, 1, "should have exactly one header block");
   assert.ok(
-    headerTexts.some((t) => t.includes("Created dev zip")),
-    "should have a header block for Created dev zip",
+    headers[0].text.text.includes("Created dev zip"),
+    "header should be Created dev zip",
   );
-});
-
-test("has divider blocks for visual separation", () => {
-  const result = runScript({ ZIP_FILE_NAME: "test-plugin" });
 
   const dividers = result.blocks.filter((b) => b.type === "divider");
-  assert.ok(dividers.length > 0, "should have at least one divider block");
+  assert.equal(dividers.length, 1, "should have exactly one divider");
+
+  const headerIdx = result.blocks.indexOf(headers[0]);
+  const dividerIdx = result.blocks.indexOf(dividers[0]);
+  assert.equal(dividerIdx, headerIdx + 1, "divider should be right after the header");
+});
+
+test("uses bold section text for sub-headings, not header blocks", () => {
+  const result = runScript({ ZIP_FILE_NAME: "test-plugin" });
+
+  const text = allBlockText(result.blocks);
+  assert.ok(
+    text.includes("*Playwright test results*"),
+    "Playwright heading should be bold in a section block",
+  );
 });
 
 test("includes zip name and S3 download link in blocks", () => {

@@ -115,7 +115,7 @@ async function main() {
   // Compose summary markdown.
   // ---------------------------------------------------------------------------
   const lines = [];
-  lines.push("# Created dev zip");
+  lines.push("# :package: Created dev zip");
   if (ZIP_FILE_NAME) {
     if (AWS_S3_PUBLIC_URL) {
       lines.push(
