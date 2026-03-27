@@ -1,0 +1,17 @@
+name: Deploy Plugin Dev Zip to Existing InstaWP Site
+
+on:
+  workflow_dispatch:
+    inputs:
+      instawp_url:
+        required: true
+        type: string
+        description: "URL of the existing InstaWP site to deploy to (e.g. qliro-sandbox.krokedil.site). Fails if the site is not found."
+
+jobs:
+  deploy:
+    uses: krokedil/krokedil-wp-ci/.github/workflows/deploy-plugin-dev-zip-instawp-existing.yml@v1
+    with:
+      instawp_url: ${{ inputs.instawp_url }}
+    secrets:
+      INSTAWP_API_TOKEN: ${{ secrets.INSTAWP_API_TOKEN }}

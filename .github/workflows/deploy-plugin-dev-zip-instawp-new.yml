@@ -4,11 +4,11 @@ permissions:
 on:
   workflow_call:
     inputs:
-      instawp_site_name:
+      instawp_url:
         required: false
         type: string
         default: ""
-        description: "Desired InstaWP site name/slug. Defaults to ci-<run-id> if omitted."
+        description: "Desired site name for the new InstaWP site (e.g. my-plugin-test). Auto-generated if omitted."
       use_fixture_plugin:
         required: false
         type: boolean
@@ -96,10 +96,10 @@ jobs:
       - name: Create InstaWP site
         id: create-site
         env:
-          INSTAWP_SITE_NAME: ${{ inputs.instawp_site_name }}
+          INSTAWP_URL: ${{ inputs.instawp_url }}
         run: |
           # --name is required by the CLI; fall back to ci-<run-id> if not provided.
-          SITE_NAME="${INSTAWP_SITE_NAME:-ci-${GITHUB_RUN_ID}}"
+          SITE_NAME="${INSTAWP_URL:-ci-${GITHUB_RUN_ID}}"
           SITE_JSON=$(instawp sites create --name "$SITE_NAME" --json)
           SITE_ID=$(echo "$SITE_JSON" | jq -r '.data.id')
           SITE_URL=$(echo "$SITE_JSON" | jq -r '.data.url')
