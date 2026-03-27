@@ -1,0 +1,142 @@
+name: Deploy Plugin Dev Zip to Existing InstaWP Site
+permissions:
+  contents: read
+on:
+  workflow_call:
+    inputs:
+      instawp_url:
+        required: true
+        type: string
+        description: "InstaWP site URL to deploy to (e.g. qliro-sandbox.krokedil.site). The site must already exist."
+      use_fixture_plugin:
+        required: false
+        type: boolean
+        default: false
+        description: "If true, use the dummy fixture plugin from this repo instead of the caller's plugin. Used for testing the workflow itself."
+    secrets:
+      INSTAWP_API_TOKEN:
+        required: true
+    outputs:
+      instawp_site_id:
+        description: "InstaWP site ID of the site that received the dev zip."
+        value: ${{ jobs.deploy.outputs.instawp_site_id }}
+      instawp_site_url:
+        description: "URL of the InstaWP site that received the dev zip."
+        value: ${{ jobs.deploy.outputs.instawp_site_url }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      INSTAWP_TOKEN: ${{ secrets.INSTAWP_API_TOKEN }}
+    outputs:
+      instawp_site_id: ${{ steps.resolve-site.outputs.site_id }}
+      instawp_site_url: ${{ steps.resolve-site.outputs.site_url }}
+
+    steps:
+      - name: Checkout plugin repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 1
+
+      - name: Checkout CI helpers
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          repository: krokedil/krokedil-wp-ci
+          path: .github/krokedil-wp-ci
+          ref: develop-tests
+          fetch-depth: 1
+
+      - name: Set up fixture plugin for testing
+        if: inputs.use_fixture_plugin
+        run: |
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/dummy-plugin-for-repo-tests.php .
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.github/plugin-meta.json .github/plugin-meta.json
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.kernlignore .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .github/krokedil-wp-ci/.nvmrc
+
+      - name: Install CI helper dependencies
+        working-directory: .github/krokedil-wp-ci
+        run: npm ci
+
+      - name: Install InstaWP CLI
+        run: npm install -g @instawp/cli
+
+      - name: Resolve site ID from URL
+        id: resolve-site
+        env:
+          INSTAWP_URL: ${{ inputs.instawp_url }}
+        run: |
+          # Normalize: strip scheme and trailing slash for case-insensitive matching.
+          NORMALIZED=$(echo "$INSTAWP_URL" | sed 's|^https\?://||' | sed 's|/$||' | tr '[:upper:]' '[:lower:]')
+
+          SITES_JSON=$(instawp sites list --json)
+
+          SITE_ID=$(echo "$SITES_JSON" | jq -r --arg url "$NORMALIZED" '
+            .[]
+            | select((.url | ltrimstr("https://") | ltrimstr("http://") | rtrimstr("/") | ascii_downcase) == $url)
+            | .id
+          ' | head -1)
+
+          SITE_URL=$(echo "$SITES_JSON" | jq -r --arg url "$NORMALIZED" '
+            .[]
+            | select((.url | ltrimstr("https://") | ltrimstr("http://") | rtrimstr("/") | ascii_downcase) == $url)
+            | .url
+          ' | head -1)
+
+          if [ -z "$SITE_ID" ]; then
+            echo "::error::No InstaWP site found matching URL: ${INSTAWP_URL}" >&2
+            exit 1
+          fi
+
+          echo "site_id=${SITE_ID}" >> "$GITHUB_OUTPUT"
+          echo "site_url=${SITE_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Get plugin meta
+        id: meta
+        run: bash .github/krokedil-wp-ci/scripts/get-plugin-meta.sh
+
+      - name: Prepare plugin dev zip
+        id: prepare
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          DISTRIBUTION_PLATFORM: ${{ steps.meta.outputs.distribution_platform }}
+        run: bash .github/krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
+
+      # For WordPress.org plugins, prepare-plugin-dev-zip.sh does not create
+      # zipfile/ (it relies on the wp.org build action). Create it here instead
+      # so the zip step has a consistent source regardless of distribution type.
+      - name: Create plugin directory for zip (WordPress.org plugins)
+        if: steps.meta.outputs.distribution_platform == 'wordpress-org'
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+        run: |
+          mkdir -p "zipfile/${PLUGIN_SLUG}"
+          rsync -av --exclude='zipfile' . "zipfile/${PLUGIN_SLUG}/"
+
+      - name: Upload and install plugin on InstaWP site
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          INSTAWP_SITE_ID: ${{ steps.resolve-site.outputs.site_id }}
+        run: |
+          # Zip the prepared plugin directory.
+          (cd zipfile && zip -qr plugin.zip "$PLUGIN_SLUG")
+
+          # Upload the zip to the site by piping into cat on the remote shell.
+          instawp exec "$INSTAWP_SITE_ID" 'cat > /tmp/plugin.zip' < zipfile/plugin.zip
+
+          # Install and activate from the uploaded zip.
+          instawp wp "$INSTAWP_SITE_ID" \
+            plugin install /tmp/plugin.zip --activate --force --skip-plugins --skip-themes
+
+      - name: Add InstaWP deploy job summary
+        env:
+          INSTAWP_SITE_URL: ${{ steps.resolve-site.outputs.site_url }}
+          INSTAWP_SITE_ID: ${{ steps.resolve-site.outputs.site_id }}
+          INSTAWP_SITE_CREATED: "false"
+        run: |
+          node .github/krokedil-wp-ci/scripts/job-summary-deploy-plugin-dev-zip-instawp.js

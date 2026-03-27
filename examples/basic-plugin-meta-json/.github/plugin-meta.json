@@ -4,7 +4,7 @@
   "distributionPlatform": "wordpress-org",
   "requiresPlugins": ["woocommerce"],
   "instawp": {
-    "pluginWcBlueprintUrl": "https://raw.githubusercontent.com/krokedil/instawp-commands/refs/heads/main/assets/wc-blueprints/wc-blueprint-kco-default.json",
+    "pluginWcBlueprintPath": ".github/blueprints/wc-blueprint-kco.json",
     "pluginCredentialsOptionPatches": [
       {
         "optionName": "woocommerce_kco_settings",

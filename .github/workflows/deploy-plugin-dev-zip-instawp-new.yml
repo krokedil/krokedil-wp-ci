@@ -1,0 +1,152 @@
+name: Deploy Plugin Dev Zip to New InstaWP Site
+permissions:
+  contents: read
+on:
+  workflow_call:
+    inputs:
+      instawp_site_name:
+        required: false
+        type: string
+        default: ""
+        description: "Desired InstaWP site name/slug. Defaults to ci-<run-id> if omitted."
+      use_fixture_plugin:
+        required: false
+        type: boolean
+        default: false
+        description: "If true, use the dummy fixture plugin from this repo instead of the caller's plugin. Used for testing the workflow itself."
+    secrets:
+      INSTAWP_API_TOKEN:
+        required: true
+      E2E_API_KEY:
+        required: false
+      E2E_API_SECRET:
+        required: false
+    outputs:
+      instawp_site_id:
+        description: "InstaWP site ID of the newly created site."
+        value: ${{ jobs.deploy.outputs.instawp_site_id }}
+      instawp_site_url:
+        description: "URL of the newly created InstaWP site."
+        value: ${{ jobs.deploy.outputs.instawp_site_url }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      INSTAWP_TOKEN: ${{ secrets.INSTAWP_API_TOKEN }}
+    outputs:
+      instawp_site_id: ${{ steps.create-site.outputs.site_id }}
+      instawp_site_url: ${{ steps.create-site.outputs.site_url }}
+
+    steps:
+      - name: Checkout plugin repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 1
+
+      - name: Checkout CI helpers
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          repository: krokedil/krokedil-wp-ci
+          path: .github/krokedil-wp-ci
+          ref: develop-tests
+          fetch-depth: 1
+
+      - name: Set up fixture plugin for testing
+        if: inputs.use_fixture_plugin
+        run: |
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/dummy-plugin-for-repo-tests.php .
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.github/plugin-meta.json .github/plugin-meta.json
+          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.kernlignore .
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .github/krokedil-wp-ci/.nvmrc
+
+      - name: Install CI helper dependencies
+        working-directory: .github/krokedil-wp-ci
+        run: npm ci
+
+      - name: Install InstaWP CLI
+        run: npm install -g @instawp/cli
+
+      - name: Get plugin meta
+        id: meta
+        run: bash .github/krokedil-wp-ci/scripts/get-plugin-meta.sh
+
+      - name: Prepare plugin dev zip
+        id: prepare
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          DISTRIBUTION_PLATFORM: ${{ steps.meta.outputs.distribution_platform }}
+        run: bash .github/krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
+
+      # For WordPress.org plugins, prepare-plugin-dev-zip.sh does not create
+      # zipfile/ (it relies on the wp.org build action). Create it here instead
+      # so the zip step has a consistent source regardless of distribution type.
+      - name: Create plugin directory for zip (WordPress.org plugins)
+        if: steps.meta.outputs.distribution_platform == 'wordpress-org'
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+        run: |
+          mkdir -p "zipfile/${PLUGIN_SLUG}"
+          rsync -av --exclude='zipfile' . "zipfile/${PLUGIN_SLUG}/"
+
+      - name: Create InstaWP site
+        id: create-site
+        env:
+          INSTAWP_SITE_NAME: ${{ inputs.instawp_site_name }}
+        run: |
+          # --name is required by the CLI; fall back to ci-<run-id> if not provided.
+          SITE_NAME="${INSTAWP_SITE_NAME:-ci-${GITHUB_RUN_ID}}"
+          SITE_JSON=$(instawp sites create --name "$SITE_NAME" --json)
+          SITE_ID=$(echo "$SITE_JSON" | jq -r '.data.id')
+          SITE_URL=$(echo "$SITE_JSON" | jq -r '.data.url')
+          echo "site_id=${SITE_ID}" >> "$GITHUB_OUTPUT"
+          echo "site_url=${SITE_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload and install plugin on InstaWP site
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
+        run: |
+          # Zip the prepared plugin directory.
+          (cd zipfile && zip -qr plugin.zip "$PLUGIN_SLUG")
+
+          # Upload the zip to the site by piping into cat on the remote shell.
+          instawp exec "$INSTAWP_SITE_ID" 'cat > /tmp/plugin.zip' < zipfile/plugin.zip
+
+          # Install and activate from the uploaded zip.
+          instawp wp "$INSTAWP_SITE_ID" \
+            plugin install /tmp/plugin.zip --activate --force --skip-plugins --skip-themes
+
+      - name: Apply default WC blueprint
+        env:
+          INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
+        run: |
+          # Upload blueprint JSON to the site, then apply it.
+          instawp exec "$INSTAWP_SITE_ID" 'cat > /tmp/wc-blueprint-default.json' \
+            < .github/krokedil-wp-ci/scripts/instawp/blueprints/wc-blueprint-default.json
+
+          instawp exec "$INSTAWP_SITE_ID" \
+            'BLUEPRINT_JSON_PATH=/tmp/wc-blueprint-default.json bash -s' \
+            < .github/krokedil-wp-ci/scripts/instawp/apply-blueprint.sh
+
+      - name: Apply plugin-specific setup
+        env:
+          INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
+          PLUGIN_META_FILE: .github/plugin-meta.json
+          INSTAWP_SCRIPTS_DIR: .github/krokedil-wp-ci/scripts/instawp
+          E2E_API_KEY: ${{ secrets.E2E_API_KEY }}
+          E2E_API_SECRET: ${{ secrets.E2E_API_SECRET }}
+        run: |
+          bash .github/krokedil-wp-ci/scripts/instawp/setup-plugin.sh
+
+      - name: Add InstaWP deploy job summary
+        env:
+          INSTAWP_SITE_URL: ${{ steps.create-site.outputs.site_url }}
+          INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
+          INSTAWP_SITE_CREATED: "true"
+        run: |
+          node .github/krokedil-wp-ci/scripts/job-summary-deploy-plugin-dev-zip-instawp.js
