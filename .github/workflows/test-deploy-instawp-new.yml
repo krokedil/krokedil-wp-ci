@@ -1,0 +1,22 @@
+name: "Test: Deploy to New InstaWP Site"
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+    inputs:
+      instawp_url:
+        required: false
+        type: string
+        default: ""
+        description: "Desired name for the new InstaWP site (e.g. my-plugin-test). Auto-generated if omitted."
+
+jobs:
+  test:
+    uses: krokedil/krokedil-wp-ci/.github/workflows/deploy-plugin-dev-zip-instawp-new.yml@develop-tests
+    with:
+      use_fixture_plugin: true
+      instawp_url: ${{ inputs.instawp_url }}
+    secrets:
+      INSTAWP_API_TOKEN: ${{ secrets.INSTAWP_API_TOKEN }}
+      E2E_API_KEY: ${{ secrets.E2E_API_KEY }}
+      E2E_API_SECRET: ${{ secrets.E2E_API_SECRET }}
