@@ -126,12 +126,11 @@ jobs:
           # Zip the prepared plugin directory.
           (cd zipfile && zip -qr plugin.zip "$PLUGIN_SLUG")
 
-          # Upload the zip to the site by piping into cat on the remote shell.
-          instawp exec "$INSTAWP_SITE_ID" 'cat > /tmp/plugin.zip' < zipfile/plugin.zip
-
-          # Install and activate from the uploaded zip.
-          instawp wp "$INSTAWP_SITE_ID" \
-            plugin install /tmp/plugin.zip --activate --force --skip-plugins --skip-themes
+          # Pipe zip into the remote shell in a single SSH session: write to disk then
+          # install immediately so /tmp/plugin.zip is guaranteed to exist at install time.
+          instawp exec "$INSTAWP_SITE_ID" \
+            'cat > /tmp/plugin.zip && wp plugin install /tmp/plugin.zip --activate --force --skip-plugins --skip-themes' \
+            < zipfile/plugin.zip
 
       - name: Add InstaWP deploy job summary
         env:

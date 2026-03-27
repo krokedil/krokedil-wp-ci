@@ -47,10 +47,12 @@ BLUEPRINT_PATH=$(jq -r '.instawp.pluginWcBlueprintPath // empty' "$PLUGIN_META_F
 if [ -n "$BLUEPRINT_PATH" ]; then
   if [ -f "$BLUEPRINT_PATH" ]; then
     echo "[INFO] Applying plugin-specific WC blueprint from $BLUEPRINT_PATH" >&2
-    # Upload blueprint file to a temp location on the site, then apply it.
-    instawp exec "$INSTAWP_SITE_ID" 'cat > /tmp/plugin-blueprint.json' < "$BLUEPRINT_PATH"
+    # Base64-encode the blueprint JSON so it can be embedded in the exec command
+    # string, while apply-blueprint.sh is fed via stdin to 'bash -s'. This keeps
+    # the upload and execution in one SSH session.
+    BLUEPRINT_B64=$(base64 -w 0 "$BLUEPRINT_PATH")
     instawp exec "$INSTAWP_SITE_ID" \
-      'BLUEPRINT_JSON_PATH=/tmp/plugin-blueprint.json bash -s' \
+      "echo ${BLUEPRINT_B64} | base64 -d > /tmp/plugin-blueprint.json && BLUEPRINT_JSON_PATH=/tmp/plugin-blueprint.json bash -s" \
       < "${SCRIPTS_DIR}/apply-blueprint.sh"
   else
     echo "::warning::pluginWcBlueprintPath is set to '$BLUEPRINT_PATH' but file not found; skipping" >&2
