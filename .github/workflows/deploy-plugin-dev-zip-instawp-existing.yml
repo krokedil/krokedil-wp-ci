@@ -109,8 +109,8 @@ jobs:
 
       # For WordPress.org plugins, prepare-plugin-dev-zip.sh does not create
       # zipfile/ (it relies on the wp.org build action). Create it here instead
-      # so the zip step has a consistent source regardless of distribution type.
-      - name: Create plugin directory for zip (WordPress.org plugins)
+      # so the sync step has a consistent source regardless of distribution type.
+      - name: Create plugin directory for sync (WordPress.org plugins)
         if: steps.meta.outputs.distribution_platform == 'wordpress-org'
         env:
           PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
@@ -118,19 +118,20 @@ jobs:
           mkdir -p "zipfile/${PLUGIN_SLUG}"
           rsync -av --exclude='zipfile' . "zipfile/${PLUGIN_SLUG}/"
 
-      - name: Upload and install plugin on InstaWP site
+      - name: Upload and activate plugin on InstaWP site
         env:
           PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
           INSTAWP_SITE_ID: ${{ steps.resolve-site.outputs.site_id }}
         run: |
-          # Zip the prepared plugin directory.
-          (cd zipfile && zip -qr plugin.zip "$PLUGIN_SLUG")
+          # Arrange plugin files into wp-content structure expected by instawp sync push.
+          mkdir -p wp-content/plugins
+          cp -r "zipfile/${PLUGIN_SLUG}" "wp-content/plugins/${PLUGIN_SLUG}"
 
-          # Pipe zip into the remote shell in a single SSH session: write to disk then
-          # install immediately so /tmp/plugin.zip is guaranteed to exist at install time.
-          instawp exec "$INSTAWP_SITE_ID" \
-            'cat > /tmp/plugin.zip && wp plugin install /tmp/plugin.zip --activate --force --skip-plugins --skip-themes' \
-            < zipfile/plugin.zip
+          # Sync the plugin directory directly to the site via rsync.
+          instawp sync push "$INSTAWP_SITE_ID" --path ./wp-content/plugins/
+
+          # Activate the plugin.
+          instawp wp "$INSTAWP_SITE_ID" plugin activate "$PLUGIN_SLUG"
 
       - name: Add InstaWP deploy job summary
         env:

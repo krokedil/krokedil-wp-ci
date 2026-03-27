@@ -84,8 +84,8 @@ jobs:
 
       # For WordPress.org plugins, prepare-plugin-dev-zip.sh does not create
       # zipfile/ (it relies on the wp.org build action). Create it here instead
-      # so the zip step has a consistent source regardless of distribution type.
-      - name: Create plugin directory for zip (WordPress.org plugins)
+      # so the sync step has a consistent source regardless of distribution type.
+      - name: Create plugin directory for sync (WordPress.org plugins)
         if: steps.meta.outputs.distribution_platform == 'wordpress-org'
         env:
           PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
@@ -106,31 +106,31 @@ jobs:
           echo "site_id=${SITE_ID}" >> "$GITHUB_OUTPUT"
           echo "site_url=${SITE_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload and install plugin on InstaWP site
+      - name: Upload and activate plugin on InstaWP site
         env:
           PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
           INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
         run: |
-          # Zip the prepared plugin directory.
-          (cd zipfile && zip -qr plugin.zip "$PLUGIN_SLUG")
+          # Arrange plugin files into wp-content structure expected by instawp sync push.
+          mkdir -p wp-content/plugins
+          cp -r "zipfile/${PLUGIN_SLUG}" "wp-content/plugins/${PLUGIN_SLUG}"
 
-          # Pipe zip into the remote shell in a single SSH session: write to disk then
-          # install immediately so /tmp/plugin.zip is guaranteed to exist at install time.
-          instawp exec "$INSTAWP_SITE_ID" \
-            'cat > /tmp/plugin.zip && wp plugin install /tmp/plugin.zip --activate --force --skip-plugins --skip-themes' \
-            < zipfile/plugin.zip
+          # Sync the plugin directory directly to the site via rsync.
+          instawp sync push "$INSTAWP_SITE_ID" --path ./wp-content/plugins/
+
+          # Activate the plugin.
+          instawp wp "$INSTAWP_SITE_ID" plugin activate "$PLUGIN_SLUG"
 
       - name: Apply default WC blueprint
         env:
           INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
         run: |
-          # Base64-encode the blueprint JSON so it can be embedded in the exec command
-          # string, while apply-blueprint.sh is fed via stdin to 'bash -s'. This avoids
-          # needing two separate SSH sessions (one to upload, one to run the script).
+          # instawp exec does not forward stdin, so base64-encode both the blueprint
+          # JSON and the apply script and embed them in the command string.
           BLUEPRINT_B64=$(base64 -w 0 .github/krokedil-wp-ci/scripts/instawp/blueprints/wc-blueprint-default.json)
+          SCRIPT_B64=$(base64 -w 0 .github/krokedil-wp-ci/scripts/instawp/apply-blueprint.sh)
           instawp exec "$INSTAWP_SITE_ID" \
-            "echo ${BLUEPRINT_B64} | base64 -d > /tmp/wc-blueprint-default.json && BLUEPRINT_JSON_PATH=/tmp/wc-blueprint-default.json bash -s" \
-            < .github/krokedil-wp-ci/scripts/instawp/apply-blueprint.sh
+            "printf '%s' '${BLUEPRINT_B64}' | base64 -d > /tmp/wc-blueprint-default.json && printf '%s' '${SCRIPT_B64}' | base64 -d > /tmp/apply-blueprint.sh && BLUEPRINT_JSON_PATH=/tmp/wc-blueprint-default.json bash /tmp/apply-blueprint.sh"
 
       - name: Apply plugin-specific setup
         env:
