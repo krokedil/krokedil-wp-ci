@@ -69,7 +69,7 @@ jobs:
         run: npm ci
 
       - name: Install InstaWP CLI
-        run: npm install -g @instawp/cli
+        run: npm install -g @instawp/cli@0.0.1-beta.2
 
       - name: Get plugin meta
         id: meta
@@ -116,7 +116,7 @@ jobs:
           cp -r "zipfile/${PLUGIN_SLUG}" "wp-content/plugins/${PLUGIN_SLUG}"
 
           # Sync the plugin directory directly to the site via rsync.
-          instawp sync push "$INSTAWP_SITE_ID" --path ./wp-content/plugins/
+          instawp sync push "$INSTAWP_SITE_ID"
 
           # Activate the plugin.
           instawp wp "$INSTAWP_SITE_ID" plugin activate "$PLUGIN_SLUG"
