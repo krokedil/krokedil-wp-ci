@@ -106,7 +106,7 @@ jobs:
           echo "site_id=${SITE_ID}" >> "$GITHUB_OUTPUT"
           echo "site_url=${SITE_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload and activate plugin on InstaWP site
+      - name: Upload plugin files to InstaWP site
         env:
           PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
           INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
@@ -116,10 +116,8 @@ jobs:
           cp -r "zipfile/${PLUGIN_SLUG}" "wp-content/plugins/${PLUGIN_SLUG}"
 
           # Sync the plugin directory directly to the site via rsync.
+          # Activation happens after the WC blueprint so WooCommerce is already installed.
           instawp sync push "$INSTAWP_SITE_ID"
-
-          # Activate the plugin.
-          instawp wp "$INSTAWP_SITE_ID" plugin activate "$PLUGIN_SLUG"
 
       - name: Apply default WC blueprint
         env:
@@ -131,6 +129,13 @@ jobs:
           SCRIPT_B64=$(base64 -w 0 .github/krokedil-wp-ci/scripts/instawp/apply-blueprint.sh)
           instawp exec "$INSTAWP_SITE_ID" \
             "printf '%s' '${BLUEPRINT_B64}' | base64 -d > /tmp/wc-blueprint-default.json && printf '%s' '${SCRIPT_B64}' | base64 -d > /tmp/apply-blueprint.sh && BLUEPRINT_JSON_PATH=/tmp/wc-blueprint-default.json bash /tmp/apply-blueprint.sh"
+
+      - name: Activate plugin
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
+        run: |
+          instawp wp "$INSTAWP_SITE_ID" plugin activate "$PLUGIN_SLUG"
 
       - name: Apply plugin-specific setup
         env:
