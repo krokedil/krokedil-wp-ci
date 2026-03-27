@@ -15,7 +15,7 @@
  *   - WORKFLOW_RUN_URL     : URL to the GitHub Actions workflow run that triggered this.
  *
  * Outputs:
- *   - Writes a JSON object `{ "text": "..." }` to stdout.
+ *   - Writes a Slack Block Kit JSON payload to stdout (`blocks` array + `text` fallback).
  *
  * Behavior:
  *   1. Reads the same data sources as job-summary-create-plugin-dev-zip.js.
@@ -54,24 +54,51 @@ function escapeSlack(text) {
 }
 
 // ---------------------------------------------------------------------------
-// Playwright section for Slack
+// Slack Block Kit helpers
+
+/** @param {string} text */
+function headerBlock(text) {
+  return { type: "header", text: { type: "plain_text", text, emoji: true } };
+}
+
+/** @param {string} mrkdwn */
+function sectionBlock(mrkdwn) {
+  return { type: "section", text: { type: "mrkdwn", text: mrkdwn } };
+}
+
+/** @param {string[]} mrkdwnElements */
+function contextBlock(mrkdwnElements) {
+  return {
+    type: "context",
+    elements: mrkdwnElements.map((t) => ({ type: "mrkdwn", text: t })),
+  };
+}
+
+function dividerBlock() {
+  return { type: "divider" };
+}
+
+// ---------------------------------------------------------------------------
+// Playwright blocks for Slack
 
 /**
- * Build the Playwright test results section formatted for Slack mrkdwn.
+ * Build Block Kit blocks for the Playwright test results section.
  * @param {{ reportUrl?: string }} options
- * @returns {string | null}
+ * @returns {object[]} Array of Slack blocks (may be empty).
  */
-function buildPlaywrightSlackSection({ reportUrl } = {}) {
+function buildPlaywrightBlocks({ reportUrl } = {}) {
   const report = tryLoadPlaywrightReport();
 
   if (!report) {
     if (reportUrl) {
       return [
-        "*Playwright test results*",
-        `For full testing details, view Playwright report <${reportUrl}|here> and/or download full e2e-test-reports artifact from this workflow run. Both are available for 7 days.`,
-      ].join("\n");
+        headerBlock("Playwright test results"),
+        sectionBlock(
+          `For full testing details, view Playwright report <${reportUrl}|here> and/or download full e2e-test-reports artifact from this workflow run. Both are available for 7 days.`,
+        ),
+      ];
     }
-    return null;
+    return [];
   }
 
   const stats = report.stats || {};
@@ -83,25 +110,28 @@ function buildPlaywrightSlackSection({ reportUrl } = {}) {
   } = collectTestData(report);
 
   if (testRows.size === 0) {
-    const parts = ["*Playwright test results*", "", "No test results found in the report."];
+    const blocks = [
+      headerBlock("Playwright test results"),
+      sectionBlock("No test results found in the report."),
+    ];
     if (reportUrl) {
-      parts.push(`<${reportUrl}|View Playwright report>`);
+      blocks.push(sectionBlock(`<${reportUrl}|View Playwright report>`));
     }
-    return parts.join("\n");
+    return blocks;
   }
 
-  const lines = [];
+  const blocks = [];
+
+  // Header
+  blocks.push(headerBlock("Playwright test results"));
 
   // Summary line
-  lines.push("*Playwright test results*");
-
   const totalExpected = stats.expected || 0;
   const totalUnexpected = stats.unexpected || 0;
   const totalFlaky = stats.flaky || 0;
   const totalDuration = formatDuration(stats.duration || 0);
   const versionCount = phpVersions.length || 1;
   const versionWord = versionCount === 1 ? "version" : "versions";
-
   const phpListDisplay = phpVersions.length
     ? ` (${phpVersions.join(", ")})`
     : "";
@@ -111,23 +141,26 @@ function buildPlaywrightSlackSection({ reportUrl } = {}) {
     parts.push(`${totalExpected} passed`);
     if (totalFlaky > 0) parts.push(`${totalFlaky} flaky`);
     parts.push(`${totalUnexpected} failed`);
-    lines.push(
-      `:rotating_light: ${totalUnexpected} test${totalUnexpected === 1 ? "" : "s"} failed. ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
+    blocks.push(
+      sectionBlock(
+        `:rotating_light: ${totalUnexpected} test${totalUnexpected === 1 ? "" : "s"} failed. ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
+      ),
     );
   } else {
     const parts = [
       `${totalExpected} test${totalExpected === 1 ? "" : "s"} passed`,
     ];
     if (totalFlaky > 0) parts.push(`${totalFlaky} flaky`);
-    lines.push(
-      `:white_check_mark: ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
+    blocks.push(
+      sectionBlock(
+        `:white_check_mark: ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
+      ),
     );
   }
 
-  // Per-test details: only list tests that did not fully pass, with PHP detail.
+  // Per-test list: always show every test, with extra detail for non-passing.
+  const testLines = [];
   const versions = phpVersions.length ? phpVersions : ["default"];
-  const failedTests = [];
-  const flakyTests = [];
   for (const [specTitle, phpResults] of testRows) {
     const failedOn = [];
     const flakyOn = [];
@@ -137,43 +170,35 @@ function buildPlaywrightSlackSection({ reportUrl } = {}) {
       if (result.status === "unexpected") failedOn.push(v);
       else if (result.status === "flaky") flakyOn.push(v);
     }
+
     if (failedOn.length) {
       const detail = phpVersions.length
-        ? ` (PHP ${failedOn.join(", ")})`
+        ? ` Failed on PHP ${failedOn.join(", ")}`
         : "";
-      failedTests.push(`• ${escapeSlack(specTitle)}${detail}`);
-    }
-    if (flakyOn.length) {
+      testLines.push(`• ${escapeSlack(specTitle)} :x:${detail}`);
+    } else if (flakyOn.length) {
       const detail = phpVersions.length
-        ? ` (PHP ${flakyOn.join(", ")})`
+        ? ` Flaky on PHP ${flakyOn.join(", ")}`
         : "";
-      flakyTests.push(`• ${escapeSlack(specTitle)}${detail}`);
+      testLines.push(`• ${escapeSlack(specTitle)} :warning:${detail}`);
+    } else {
+      testLines.push(`• ${escapeSlack(specTitle)} :white_check_mark:`);
     }
   }
-
-  if (failedTests.length) {
-    lines.push("");
-    lines.push(`:x: Failed:`);
-    lines.push(...failedTests);
-  }
-  if (flakyTests.length) {
-    lines.push("");
-    lines.push(`:warning: Flaky:`);
-    lines.push(...flakyTests);
-  }
+  blocks.push(sectionBlock(testLines.join("\n")));
 
   // Test environment
   const env = parseUsedVersionsAnnotation(firstUsedVersionsAnnotation);
   if (env && (env.wordpress || env.theme || env.plugins.length)) {
-    lines.push("");
-    lines.push("*Test environment*");
-    if (env.wordpress) lines.push(`• WordPress: ${escapeSlack(env.wordpress)}`);
-    if (env.theme) lines.push(`• Theme: ${escapeSlack(env.theme)}`);
+    const envLines = [];
+    if (env.wordpress) envLines.push(`WordPress: ${escapeSlack(env.wordpress)}`);
+    if (env.theme) envLines.push(`Theme: ${escapeSlack(env.theme)}`);
     for (const plugin of env.plugins) {
-      lines.push(
-        `• ${escapeSlack(plugin.name)}: ${escapeSlack(plugin.version)}`,
+      envLines.push(
+        `${escapeSlack(plugin.name)}: ${escapeSlack(plugin.version)}`,
       );
     }
+    blocks.push(contextBlock(envLines));
   }
 
   // Composer deps
@@ -181,27 +206,28 @@ function buildPlaywrightSlackSection({ reportUrl } = {}) {
     firstComposerDepsAnnotation,
   );
   if (composerDeps.length) {
-    lines.push("");
-    lines.push("*Krokedil composer dependencies*");
+    const depLines = [];
     for (const { pluginSlug, packages } of composerDeps) {
-      lines.push(`_${escapeSlack(pluginSlug)}:_`);
+      depLines.push(`*${escapeSlack(pluginSlug)}:*`);
       for (const pkg of packages) {
-        lines.push(
-          `• ${escapeSlack(pkg.name)}: ${escapeSlack(pkg.version)}`,
+        depLines.push(
+          `${escapeSlack(pkg.name)}: ${escapeSlack(pkg.version)}`,
         );
       }
     }
+    blocks.push(contextBlock(depLines));
   }
 
   // HTML report link and artifact note
   if (reportUrl) {
-    lines.push("");
-    lines.push(
-      `For full testing details, view Playwright report <${reportUrl}|here> and/or download full e2e-test-reports artifact from this workflow run. Both are available for 7 days.`,
+    blocks.push(
+      sectionBlock(
+        `For full testing details, view Playwright report <${reportUrl}|here> and/or download full e2e-test-reports artifact from this workflow run. Both are available for 7 days.`,
+      ),
     );
   }
 
-  return lines.join("\n");
+  return blocks;
 }
 
 // ---------------------------------------------------------------------------
@@ -259,53 +285,65 @@ async function main() {
     PLAYGROUND_MINIMAL_URL = await builder.generateUrl();
   }
 
-  // Compose Slack mrkdwn message
-  const lines = [];
-  lines.push(":package: *Created dev zip*");
-  lines.push("———");
+  // Compose Slack Block Kit payload
+  const blocks = [];
+
+  // Created dev zip header + content
+  blocks.push(headerBlock(":package: Created dev zip"));
   if (ZIP_FILE_NAME) {
     if (AWS_S3_PUBLIC_URL) {
-      lines.push(
-        "Download or share URL for created dev zip through the link below, which is available for 30 days:",
+      blocks.push(
+        sectionBlock(
+          `Download or share URL for created dev zip through the link below, which is available for 30 days:\n• <${AWS_S3_PUBLIC_URL}|${escapeSlack(ZIP_FILE_NAME)}.zip>`,
+        ),
       );
-      lines.push(`• <${AWS_S3_PUBLIC_URL}|${escapeSlack(ZIP_FILE_NAME)}.zip>`);
     } else {
-      lines.push("Dev zip created locally (no S3 upload requested).");
-      lines.push(`• ${escapeSlack(ZIP_FILE_NAME)}.zip`);
+      blocks.push(
+        sectionBlock(
+          `Dev zip created locally (no S3 upload requested).\n• ${escapeSlack(ZIP_FILE_NAME)}.zip`,
+        ),
+      );
     }
   }
-  lines.push(
-    `\nDocumentation about how to install the dev zip can be found <https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/|here>.`,
+  blocks.push(
+    sectionBlock(
+      `Documentation about how to install the dev zip can be found <https://docs.krokedil.com/krokedil-general-support-info/installing-a-development-version/|here>.`,
+    ),
   );
 
   // Playwright section
-  const playwrightSection = buildPlaywrightSlackSection({
+  blocks.push(dividerBlock());
+  const playwrightBlocks = buildPlaywrightBlocks({
     reportUrl: PLAYWRIGHT_REPORT_URL,
   });
-  if (playwrightSection) {
-    lines.push("\n" + playwrightSection);
-  }
+  blocks.push(...playwrightBlocks);
 
   // Playground link
   const wpVersionDisplay = wpVersion || "beta";
   const phpVersionDisplay = phpVersion || "latest";
   if (PLAYGROUND_MINIMAL_URL) {
-    lines.push("\n*Test dev zip using WordPress Playground (experimental)*");
-    lines.push(
-      `You can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the links below:`,
-    );
-    lines.push(
-      `• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
+    blocks.push(dividerBlock());
+    blocks.push(headerBlock("Test dev zip using WordPress Playground"));
+    blocks.push(
+      sectionBlock(
+        `You can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the links below:\n• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
+      ),
     );
   }
 
   // Triggered by workflow run (always last)
   if (WORKFLOW_RUN_URL) {
-    lines.push(`\n_Triggered by workflow run:_ ${WORKFLOW_RUN_URL}`);
+    blocks.push(dividerBlock());
+    blocks.push(
+      contextBlock([`_Triggered by workflow run:_ ${WORKFLOW_RUN_URL}`]),
+    );
   }
 
-  const text = lines.join("\n");
-  const payload = JSON.stringify({ text });
+  // Build payload with text fallback for notifications/previews
+  const fallbackText = ZIP_FILE_NAME
+    ? `Created dev zip: ${ZIP_FILE_NAME}.zip`
+    : "Created dev zip";
+  const payload = JSON.stringify({ text: fallbackText, blocks });
   process.stdout.write(payload);
 }
 

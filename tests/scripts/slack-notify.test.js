@@ -4,7 +4,7 @@
  * Purpose:
  *   Tests for `scripts/slack-notify-create-plugin-dev-zip.js`.
  *   Runs the script as a child process with controlled env vars and verifies
- *   that stdout is a valid Slack webhook JSON payload with expected content.
+ *   that stdout is a valid Slack Block Kit JSON payload with expected content.
  *
  * Fixtures:
  *   - Uses the Playwright JSON report fixture when present (tests run from repo root).
@@ -29,7 +29,7 @@ const SCRIPT_PATH = path.join(
 /**
  * Run the Slack notify script with the given env vars and return parsed JSON.
  * @param {Record<string, string>} envOverrides
- * @returns {{ text: string }}
+ * @returns {{ text: string, blocks: object[] }}
  */
 function runScript(envOverrides = {}) {
   const env = {
@@ -53,98 +53,131 @@ function runScript(envOverrides = {}) {
   return JSON.parse(stdout);
 }
 
-test("outputs valid JSON with a text field", () => {
+/**
+ * Collect all mrkdwn text from blocks into a single string for content assertions.
+ * @param {object[]} blocks
+ * @returns {string}
+ */
+function allBlockText(blocks) {
+  const parts = [];
+  for (const block of blocks) {
+    if (block.text?.text) parts.push(block.text.text);
+    if (block.elements) {
+      for (const el of block.elements) {
+        if (el.text) parts.push(el.text);
+      }
+    }
+  }
+  return parts.join("\n");
+}
+
+test("outputs valid Block Kit payload with text fallback and blocks array", () => {
   const result = runScript({
     ZIP_FILE_NAME: "my-plugin-1.0.0",
     WORKFLOW_RUN_URL: "https://github.com/org/repo/actions/runs/123",
   });
 
   assert.equal(typeof result.text, "string");
-  assert.ok(result.text.length > 0, "text should not be empty");
+  assert.ok(result.text.length > 0, "text fallback should not be empty");
+  assert.ok(Array.isArray(result.blocks), "should have blocks array");
+  assert.ok(result.blocks.length > 0, "blocks should not be empty");
 });
 
-test("includes zip name, S3 link, and download text matching GitHub summary", () => {
+test("has header block for Created dev zip", () => {
+  const result = runScript({ ZIP_FILE_NAME: "test-plugin" });
+
+  const headers = result.blocks.filter((b) => b.type === "header");
+  const headerTexts = headers.map((h) => h.text.text);
+  assert.ok(
+    headerTexts.some((t) => t.includes("Created dev zip")),
+    "should have a header block for Created dev zip",
+  );
+});
+
+test("has divider blocks for visual separation", () => {
+  const result = runScript({ ZIP_FILE_NAME: "test-plugin" });
+
+  const dividers = result.blocks.filter((b) => b.type === "divider");
+  assert.ok(dividers.length > 0, "should have at least one divider block");
+});
+
+test("includes zip name and S3 download link in blocks", () => {
   const result = runScript({
     ZIP_FILE_NAME: "my-plugin-1.0.0",
     AWS_S3_PUBLIC_URL: "https://s3.example.com/my-plugin-1.0.0.zip",
   });
 
+  const text = allBlockText(result.blocks);
   assert.ok(
-    result.text.includes("<https://s3.example.com/my-plugin-1.0.0.zip|my-plugin-1.0.0.zip>"),
+    text.includes("<https://s3.example.com/my-plugin-1.0.0.zip|my-plugin-1.0.0.zip>"),
     "should contain Slack-formatted download link",
   );
   assert.ok(
-    result.text.includes("Download or share URL for created dev zip through the link below, which is available for 30 days:"),
+    text.includes("Download or share URL for created dev zip through the link below, which is available for 30 days:"),
     "should match GitHub summary download text",
   );
 });
 
 test("includes local-only message when no S3 URL", () => {
-  const result = runScript({
-    ZIP_FILE_NAME: "my-plugin-1.0.0",
-  });
+  const result = runScript({ ZIP_FILE_NAME: "my-plugin-1.0.0" });
 
+  const text = allBlockText(result.blocks);
   assert.ok(
-    result.text.includes("Dev zip created locally"),
+    text.includes("Dev zip created locally"),
     "should note local-only when no S3 URL",
   );
 });
 
-test("includes workflow run URL at the end", () => {
+test("includes workflow run URL in a context block", () => {
   const url = "https://github.com/krokedil/plugin/actions/runs/6848299318";
   const result = runScript({
     ZIP_FILE_NAME: "test-plugin",
     WORKFLOW_RUN_URL: url,
   });
 
+  const text = allBlockText(result.blocks);
   assert.ok(
-    result.text.includes(`_Triggered by workflow run:_ ${url}`),
+    text.includes(`_Triggered by workflow run:_ ${url}`),
     "should contain workflow run URL",
   );
+
+  const contextBlocks = result.blocks.filter((b) => b.type === "context");
+  const hasRunUrl = contextBlocks.some((b) =>
+    b.elements.some((el) => el.text.includes("Triggered by workflow run")),
+  );
+  assert.ok(hasRunUrl, "workflow run URL should be in a context block");
 });
 
-test("includes documentation text matching GitHub summary style", () => {
-  const result = runScript({
-    ZIP_FILE_NAME: "test-plugin",
-  });
+test("includes documentation text in blocks", () => {
+  const result = runScript({ ZIP_FILE_NAME: "test-plugin" });
 
+  const text = allBlockText(result.blocks);
   assert.ok(
-    result.text.includes("Documentation about how to install the dev zip can be found"),
+    text.includes("Documentation about how to install the dev zip can be found"),
     "should contain documentation text",
   );
   assert.ok(
-    result.text.includes("<https://docs.krokedil.com/"),
+    text.includes("<https://docs.krokedil.com/"),
     "should contain documentation link in Slack format",
   );
 });
 
-test("uses emoji + bold heading with divider", () => {
-  const result = runScript({
-    ZIP_FILE_NAME: "test-plugin",
-  });
+test("does not contain markdown headings in block text", () => {
+  const result = runScript({ ZIP_FILE_NAME: "test-plugin" });
 
-  assert.ok(
-    result.text.includes(":package: *Created dev zip*"),
-    "should use emoji + Slack bold for heading",
-  );
-  assert.ok(
-    result.text.includes("———"),
-    "should include divider line after heading",
-  );
-  assert.ok(
-    !result.text.includes("# "),
-    "should not contain markdown headings",
-  );
+  const text = allBlockText(result.blocks);
+  assert.ok(!text.includes("# "), "should not contain markdown headings");
 });
 
-test("omits workflow run line when WORKFLOW_RUN_URL is empty", () => {
+test("omits workflow run block when WORKFLOW_RUN_URL is empty", () => {
   const result = runScript({
     ZIP_FILE_NAME: "test-plugin",
     WORKFLOW_RUN_URL: "",
   });
 
+  const text = allBlockText(result.blocks);
   assert.ok(
-    !result.text.includes("Triggered by workflow run"),
-    "should not contain workflow run line when URL is empty",
+    !text.includes("Triggered by workflow run"),
+    "should not contain workflow run when URL is empty",
   );
 });
