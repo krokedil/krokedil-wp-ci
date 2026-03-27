@@ -1,0 +1,35 @@
+# Use this workflow when Krokedil maintains a fork of an external plugin.
+# The same workflow file lives in both the fork and the upstream repo.
+# When triggered from the Krokedil fork (where AWS credentials exist), set
+# aws_upload to true to upload the dev zip and test report to S3.
+# When triggered from the upstream repo (no credentials), leave aws_upload as
+# false — the zip and test report are still available as GitHub artifacts.
+name: Create Plugin Dev Zip (Krokedil fork)
+
+on:
+  # Uncomment the push on any commit below to test the action easily.
+  # push:
+  #   branches:
+  #     - '**'
+  workflow_dispatch:
+    inputs:
+      aws_upload:
+        required: false
+        type: boolean
+        default: false
+        description: "Upload the dev zip and test report to S3. Requires AWS credentials — leave false when running from the upstream repo."
+      test_php_versions:
+        required: false
+        type: string
+        default: "8.3"
+        description: "PHP versions used for basic testing of the plugin dev zip: 8.4,8.3,8.2,8.1,8.0,7.4 (comma-separated) or 'all'."
+
+jobs:
+  build:
+    uses: krokedil/krokedil-wp-ci/.github/workflows/create-plugin-dev-zip.yml@v1
+    with:
+      aws_upload: ${{ inputs.aws_upload }}
+      test_php_versions: ${{ inputs.test_php_versions }}
+    secrets:
+      AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP }}
+      AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP }}

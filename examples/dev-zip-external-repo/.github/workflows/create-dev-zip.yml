@@ -1,4 +1,8 @@
-name: Create Plugin Dev Zip
+# Use this workflow for external plugins where Krokedil has no fork.
+# S3 upload is disabled since no AWS credentials are available in this repo.
+# The dev zip and test report are uploaded as GitHub artifacts and must be
+# downloaded from the workflow run page in GitHub Actions.
+name: Create Plugin Dev Zip (external repo)
 
 on:
   # Uncomment the push on any commit below to test the action easily.
@@ -17,8 +21,5 @@ jobs:
   build:
     uses: krokedil/krokedil-wp-ci/.github/workflows/create-plugin-dev-zip.yml@v1
     with:
-      aws_upload: true
+      aws_upload: false
       test_php_versions: ${{ inputs.test_php_versions }}
-    secrets:
-      AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP }}
-      AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP: ${{ secrets.AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP }}
