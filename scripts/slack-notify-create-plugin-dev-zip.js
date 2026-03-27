@@ -145,6 +145,9 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
     ? ` (${phpVersions.join(", ")})`
     : "";
 
+  blocks.push(sectionBlock("*Playwright test results*"));
+  blocks.push(dividerBlock());
+
   if (totalUnexpected > 0) {
     const parts = [];
     parts.push(`${totalExpected} passed`);
@@ -152,7 +155,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
     parts.push(`${totalUnexpected} failed`);
     blocks.push(
       sectionBlock(
-        `*Playwright test results*\n${totalUnexpected} test${totalUnexpected === 1 ? "" : "s"} failed. ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
+        `${totalUnexpected} test${totalUnexpected === 1 ? "" : "s"} failed. ${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
       ),
     );
   } else {
@@ -162,7 +165,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
     if (totalFlaky > 0) parts.push(`${totalFlaky} flaky`);
     blocks.push(
       sectionBlock(
-        `*Playwright test results*\n${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
+        `${parts.join(", ")} across ${versionCount} PHP ${versionWord}${phpListDisplay} in ${totalDuration}.`,
       ),
     );
   }
@@ -204,35 +207,37 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
     blocks.push(fieldsBlock(testFieldRows.slice(i, i + ROWS_PER_BLOCK)));
   }
 
-  // Test environment
+  // Test environment as two-column fields (label | version)
   const env = parseUsedVersionsAnnotation(firstUsedVersionsAnnotation);
   if (env && (env.wordpress || env.theme || env.plugins.length)) {
-    const envLines = [];
-    if (env.wordpress) envLines.push(`WordPress: ${escapeSlack(env.wordpress)}`);
-    if (env.theme) envLines.push(`Theme: ${escapeSlack(env.theme)}`);
+    const envRows = [];
+    if (env.wordpress) envRows.push({ left: "WordPress", right: escapeSlack(env.wordpress) });
+    if (env.theme) envRows.push({ left: "Theme", right: escapeSlack(env.theme) });
     for (const plugin of env.plugins) {
-      envLines.push(
-        `${escapeSlack(plugin.name)}: ${escapeSlack(plugin.version)}`,
-      );
+      envRows.push({ left: escapeSlack(plugin.name), right: escapeSlack(plugin.version) });
     }
-    blocks.push(contextBlock(envLines));
+    blocks.push(sectionBlock("*Test environment*"));
+    for (let i = 0; i < envRows.length; i += ROWS_PER_BLOCK) {
+      blocks.push(fieldsBlock(envRows.slice(i, i + ROWS_PER_BLOCK)));
+    }
   }
 
-  // Composer deps
+  // Composer deps as two-column fields (package | version)
   const composerDeps = parseComposerDepsAnnotation(
     firstComposerDepsAnnotation,
   );
   if (composerDeps.length) {
-    const depLines = [];
+    blocks.push(sectionBlock("*Krokedil composer dependencies*"));
     for (const { pluginSlug, packages } of composerDeps) {
-      depLines.push(`*${escapeSlack(pluginSlug)}:*`);
-      for (const pkg of packages) {
-        depLines.push(
-          `${escapeSlack(pkg.name)}: ${escapeSlack(pkg.version)}`,
-        );
+      const depRows = packages.map((pkg) => ({
+        left: escapeSlack(pkg.name),
+        right: escapeSlack(pkg.version),
+      }));
+      blocks.push(sectionBlock(`_${escapeSlack(pluginSlug)}:_`));
+      for (let i = 0; i < depRows.length; i += ROWS_PER_BLOCK) {
+        blocks.push(fieldsBlock(depRows.slice(i, i + ROWS_PER_BLOCK)));
       }
     }
-    blocks.push(contextBlock(depLines));
   }
 
   // HTML report link and artifact note
@@ -339,9 +344,11 @@ async function main() {
   const wpVersionDisplay = wpVersion || "beta";
   const phpVersionDisplay = phpVersion || "latest";
   if (PLAYGROUND_MINIMAL_URL) {
+    blocks.push(sectionBlock("*Test dev zip using WordPress Playground (experimental)*"));
+    blocks.push(dividerBlock());
     blocks.push(
       sectionBlock(
-        `*Test dev zip using WordPress Playground (experimental)*\nYou can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the links below:\n• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
+        `You can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the links below:\n• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
       ),
     );
   }

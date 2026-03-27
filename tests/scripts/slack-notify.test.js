@@ -98,12 +98,24 @@ test("has exactly one header block for Created dev zip followed by a divider", (
     "header should be Created dev zip",
   );
 
-  const dividers = result.blocks.filter((b) => b.type === "divider");
-  assert.equal(dividers.length, 1, "should have exactly one divider");
-
   const headerIdx = result.blocks.indexOf(headers[0]);
-  const dividerIdx = result.blocks.indexOf(dividers[0]);
-  assert.equal(dividerIdx, headerIdx + 1, "divider should be right after the header");
+  assert.equal(result.blocks[headerIdx + 1].type, "divider", "divider should be right after the header");
+});
+
+test("has dividers after bold section headings", () => {
+  const result = runScript({ ZIP_FILE_NAME: "test-plugin" });
+
+  // Find the Playwright bold heading and check divider follows it
+  for (let i = 0; i < result.blocks.length; i++) {
+    const block = result.blocks[i];
+    if (block.type === "section" && block.text?.text === "*Playwright test results*") {
+      assert.equal(
+        result.blocks[i + 1]?.type,
+        "divider",
+        "divider should follow Playwright test results heading",
+      );
+    }
+  }
 });
 
 test("uses bold section text for sub-headings, not header blocks", () => {
