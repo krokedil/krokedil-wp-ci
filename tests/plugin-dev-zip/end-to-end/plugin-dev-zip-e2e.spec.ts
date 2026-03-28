@@ -27,7 +27,9 @@ test.describe("With WooCommerce", () => {
     // WordPress uses data-slug on plugin rows; more reliable than name matching.
     // Use .first() because WordPress may add a second row with the same data-slug
     // for update notifications.
-    const pluginRow = page.locator(`tr[data-slug="${playground.pluginSlug}"]`).first();
+    const pluginRow = page
+      .locator(`tr[data-slug="${playground.pluginSlug}"]`)
+      .first();
     await expect(pluginRow).toBeVisible();
     await expect(pluginRow).toHaveClass(/(^|\s)active(\s|$)/);
 
@@ -52,7 +54,9 @@ test.describe("With WooCommerce", () => {
     const baseUrl: string = playground.cliServer.serverUrl;
 
     for (const [index, metaPage] of playground.metaE2EPages.entries()) {
-      await page.goto(new URL(metaPage.url, baseUrl).toString());
+      await page.goto(new URL(metaPage.url, baseUrl).toString(), {
+        waitUntil: "networkidle",
+      });
 
       for (const assertion of metaPage.assertions || []) {
         const locator = page.locator(assertion.selector);
@@ -102,9 +106,9 @@ test.describe("Without WooCommerce", () => {
           baseUrl,
         ).toString(),
       );
-      const pluginRow = page.locator(
-        `tr[data-slug="${playground.pluginSlug}"]`,
-      ).first();
+      const pluginRow = page
+        .locator(`tr[data-slug="${playground.pluginSlug}"]`)
+        .first();
       await expect(pluginRow).toBeVisible();
       await expect(pluginRow).toHaveClass(/(^|\s)inactive(\s|$)/);
     } else {
@@ -114,9 +118,9 @@ test.describe("Without WooCommerce", () => {
           baseUrl,
         ).toString(),
       );
-      const pluginRow = page.locator(
-        `tr[data-slug="${playground.pluginSlug}"]`,
-      ).first();
+      const pluginRow = page
+        .locator(`tr[data-slug="${playground.pluginSlug}"]`)
+        .first();
       await expect(pluginRow).toBeVisible();
       await expect(pluginRow).toHaveClass(/(^|\s)active(\s|$)/);
     }
