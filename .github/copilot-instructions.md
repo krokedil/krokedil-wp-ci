@@ -87,4 +87,4 @@ The canonical parser is `scripts/get-plugin-meta.sh`. Prefer using it rather tha
 - Playground CLI docs: https://wordpress.github.io/wordpress-playground/cli/
 - Playwright test runner docs: https://playwright.dev/docs/test-intro
 - Playwright config reference: https://playwright.dev/docs/test-configuration
-- Vitest docs: https://vitest.dev/guide/
+

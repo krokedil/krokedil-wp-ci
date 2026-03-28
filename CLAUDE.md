@@ -15,8 +15,7 @@ cd tests/plugin-dev-zip && npm install  # test dependencies
 # Tests
 npm run test:scripts       # unit tests (node --test tests/scripts)
 cd tests/plugin-dev-zip
-npm test                   # full suite (vitest + playwright)
-npm run test:integration   # vitest only
+npm test                   # full suite (playwright)
 npm run test:e2e           # playwright with UI
 npm run test:e2e:fixture   # e2e against dummy fixture plugin
 
@@ -30,7 +29,7 @@ cd tests/plugin-dev-zip && npm run server  # WordPress Playground blueprint serv
 - `scripts/` — shared bash + node scripts called by workflows
 - `scripts/lib/` — shared libraries (playground, instawp, job-summary)
 - `tests/scripts/` — unit tests for root scripts (node --test)
-- `tests/plugin-dev-zip/` — integration (vitest) + e2e (playwright) tests
+- `tests/plugin-dev-zip/` — e2e (playwright) tests
 - `examples/` — example plugin workflow configurations
 
 ## Key conventions

@@ -2,13 +2,12 @@
   "name": "@krokedil/plugin-dev-zip-tests",
   "version": "0.1.0",
   "private": true,
-  "description": "Shared integration and e2e tests for Krokedil plugin dev zips using WordPress Playground, Vitest and Playwright.",
+  "description": "Shared e2e tests for Krokedil plugin dev zips using WordPress Playground and Playwright.",
   "type": "module",
   "scripts": {
     "clean:e2e": "node --input-type=module -e \"import fs from 'node:fs'; import path from 'node:path'; const rm=(p)=>fs.rmSync(p,{recursive:true,force:true}); rm(path.join('test-results', 'end-to-end')); rm('playground-temp-logs');\"",
     "clean:e2e:full": "npm run clean:e2e && node --input-type=module -e \"import fs from 'node:fs'; const rm=(p)=>fs.rmSync(p,{recursive:true,force:true}); rm('playground-snapshots');\"",
-    "test": "vitest run --config=integration/vitest.config.ts && npm run clean:e2e && npx playwright test --config=end-to-end/playwright.config.ts",
-    "test:integration": "vitest --config=integration/vitest.config.ts",
+    "test": "npm run clean:e2e && npx playwright test --config=end-to-end/playwright.config.ts",
     "test:e2e": "npm run clean:e2e && npx playwright test --ui --config=end-to-end/playwright.config.ts",
     "test:e2e:fixture": "npm run clean:e2e && PLUGIN_META_JSON=\"$(cat ../scripts/fixtures/dummy-plugin-for-repo-tests/.github/plugin-meta.json)\" E2E_AUTO_MOUNT=../scripts/fixtures/dummy-plugin-for-repo-tests npx playwright test --config=end-to-end/playwright.config.ts",
     "server": "node -e \"const fs=require('fs'); const path=require('path'); const { BlueprintBuilder, applyKrokedilBlueprintTemplate } = require('../../scripts/lib/playground/index.js'); (async () => { const outDir='./playground-temp-logs'; fs.mkdirSync(outDir, { recursive: true }); const outPath=path.join(outDir, 'server-blueprint.json'); const b=new BlueprintBuilder({ install_woocommerce: true, install_wc_beta_tester: true }, applyKrokedilBlueprintTemplate); await b.assertValidWithSchema(); fs.writeFileSync(outPath, JSON.stringify(b.blueprint, null, 2) + '\\n'); console.log('Blueprint written to ' + outPath); })().catch((e) => { console.error(e); process.exit(1); });\" && npx @wp-playground/cli server --mount=./playground-temp-logs:/wordpress/wp-content/uploads/krokedil-wp-ci --blueprint=./playground-temp-logs/server-blueprint.json"
@@ -16,8 +15,7 @@
   "devDependencies": {
     "@playwright/test": "^1.51.1",
     "@types/node": "^22.14.1",
-    "@wp-playground/cli": "3.1.13",
-    "vitest": "^3.1.1"
+    "@wp-playground/cli": "3.1.13"
   },
   "dependencies": {
     "unzipper": "^0.12.3"

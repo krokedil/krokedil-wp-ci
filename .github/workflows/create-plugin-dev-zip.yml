@@ -155,15 +155,6 @@ jobs:
           restore-keys: |
             playground-${{ runner.os }}-
 
-      - name: Run shared integration tests (Vitest)
-        working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
-        if: false
-        env:
-          E2E_AUTO_MOUNT: ${{ github.workspace }}/zipfile/${{ steps.meta.outputs.plugin_slug }}
-          PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
-          KROKEDIL_TEST_PHP_VERSIONS: ${{ inputs.test_php_versions }}
-        run: |
-          npx vitest run --config=integration/vitest.config.ts
 
       - name: Run shared e2e tests (Playwright)
         working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
