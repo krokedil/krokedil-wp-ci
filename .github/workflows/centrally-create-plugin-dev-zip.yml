@@ -1,0 +1,220 @@
+# Centrally Create Plugin Dev Zip
+#
+# Builds a dev zip for an external plugin repo using this repo's secrets.
+# Use this when the plugin repo itself doesn't have AWS S3 or Slack secrets.
+#
+# Inputs: plugin repo (dropdown), branch/SHA, AWS upload toggle, PHP versions.
+# Checkout: external plugin at root, CI helpers at .github/krokedil-wp-ci.
+# GITHUB_REF_NAME/GITHUB_SHA are overridden to reflect the external repo.
+
+name: Centrally Create Plugin Dev Zip
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+    inputs:
+      plugin_repo:
+        required: true
+        type: choice
+        description: "External plugin repository to build."
+        options:
+          - krokedil/budbee-for-woocommerce
+          - SwedbankPay/swedbank-pay-woocommerce-paymentmenu
+          - krokedil/klarna-payments-for-woocommerce
+      ref:
+        required: false
+        type: string
+        default: "main"
+        description: "Branch, tag, or commit SHA to check out from the plugin repo."
+      aws_upload:
+        required: false
+        type: boolean
+        default: true
+        description: "If true, package zip and upload to S3 bucket."
+      test_php_versions:
+        required: false
+        type: string
+        default: "8.3"
+        description: "PHP versions for e2e testing: 8.4,8.3,8.2,8.1,8.0,7.4 (comma-separated) or 'all'."
+
+jobs:
+  create_plugin_dev_zip:
+    runs-on: ubuntu-latest
+    outputs:
+      zip_file_name: ${{ steps.prepare.outputs.zip_file_name }}
+      aws_s3_public_url: ${{ steps.upload.outputs.aws_s3_public_url }}
+    steps:
+      - name: Checkout external plugin repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          repository: ${{ inputs.plugin_repo }}
+          ref: ${{ inputs.ref }}
+          token: ${{ secrets.CLASSIC_PERSONAL_ACCESS_TOKEN }}
+          fetch-depth: 1
+
+      - name: Checkout CI helpers
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          repository: krokedil/krokedil-wp-ci
+          path: .github/krokedil-wp-ci
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Resolve external repo ref and SHA
+        id: external-ref
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "ref_name=${{ inputs.ref }}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .github/krokedil-wp-ci/.nvmrc
+          cache: 'npm'
+          cache-dependency-path: |
+            .github/krokedil-wp-ci/package-lock.json
+            .github/krokedil-wp-ci/tests/plugin-dev-zip/package-lock.json
+
+      - name: Install CI helper dependencies
+        working-directory: .github/krokedil-wp-ci
+        run: npm ci
+
+      - name: Get plugin meta
+        id: meta
+        run: bash .github/krokedil-wp-ci/scripts/get-plugin-meta.sh
+
+      - name: Prepare plugin dev zip
+        id: prepare
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          DISTRIBUTION_PLATFORM: ${{ steps.meta.outputs.distribution_platform }}
+          GITHUB_REF_NAME: ${{ steps.external-ref.outputs.ref_name }}
+          GITHUB_SHA: ${{ steps.external-ref.outputs.sha }}
+        run: bash .github/krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
+
+      - name: Generate plugin zip and upload as artifact (WordPress.org)
+        id: generate-wp-org
+        if: steps.meta.outputs.distribution_platform == 'wordpress-org'
+        uses: krokedil/action-wordpress-plugin-build-zip@c7e63d9847b9775a3d9f1ff0204ade98016f335d # krokedil-improvements
+        env:
+          SLUG: ${{ steps.meta.outputs.plugin_slug }}
+        with:
+          upload-plugin-artifact: true
+          retention-days: 1
+          artifact-name: ${{ steps.prepare.outputs.zip_file_name }}
+
+      - name: Upload prepared plugin as artifact (non-WordPress.org)
+        id: upload-non-wp-org
+        if: steps.meta.outputs.distribution_platform != 'wordpress-org'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ${{ steps.prepare.outputs.zip_file_name }}
+          path: zipfile
+          retention-days: 1
+
+      - name: Validate prepared plugin folder
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+        run: bash .github/krokedil-wp-ci/scripts/validate-prepared-plugin-folder.sh
+
+      - name: Configure AWS credentials (optional)
+        if: inputs.aws_upload == true
+        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7 # v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_KROKEDIL_PLUGIN_DEV_ZIP }}
+          aws-region: eu-north-1
+
+      - name: Upload to S3 (optional)
+        id: upload
+        if: inputs.aws_upload == true
+        env:
+          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          ZIP_FILE_NAME: ${{ steps.prepare.outputs.zip_file_name }}
+        run: bash .github/krokedil-wp-ci/scripts/upload-zip-aws-s3.sh
+
+      - name: Install test dependencies
+        working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('.github/krokedil-wp-ci/tests/plugin-dev-zip/package-lock.json') }}
+
+      - name: Install Playwright browsers
+        working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
+        run: npx playwright install --with-deps
+
+      - name: Cache Playground snapshots
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        with:
+          path: .github/krokedil-wp-ci/tests/plugin-dev-zip/playground-snapshots
+          key: playground-${{ runner.os }}-${{ hashFiles('zipfile/**', '.github/krokedil-wp-ci/scripts/lib/playground/**') }}
+          restore-keys: |
+            playground-${{ runner.os }}-
+
+      - name: Run shared e2e tests (Playwright)
+        working-directory: .github/krokedil-wp-ci/tests/plugin-dev-zip
+        env:
+          E2E_AUTO_MOUNT: ${{ github.workspace }}/zipfile/${{ steps.meta.outputs.plugin_slug }}
+          PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
+          KROKEDIL_TEST_PHP_VERSIONS: ${{ inputs.test_php_versions }}
+        run: |
+          npm run clean:e2e
+          npx playwright test --config=end-to-end/playwright.config.ts
+
+      - name: Upload Playwright test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: e2e-test-reports-${{ steps.prepare.outputs.zip_file_name }}
+          path: .github/krokedil-wp-ci/tests/plugin-dev-zip/test-results/end-to-end
+          retention-days: 7
+
+      - name: Upload Playwright HTML report to S3 (optional)
+        if: inputs.aws_upload == true
+        id: upload_playwright_report
+        env:
+          PLAYWRIGHT_REPORT_DIR: .github/krokedil-wp-ci/tests/plugin-dev-zip/test-results/end-to-end/html-report
+        run: bash .github/krokedil-wp-ci/scripts/upload-playwright-report-aws-s3.sh
+
+      - name: Create job summary
+        if: ${{ always() }}
+        id: summary
+        env:
+          PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
+          ZIP_FILE_NAME: ${{ steps.prepare.outputs.zip_file_name }}
+          AWS_S3_PUBLIC_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
+          PLAYWRIGHT_REPORT_URL: ${{ steps.upload_playwright_report.outputs.playwright_report_url }}
+        run: node .github/krokedil-wp-ci/scripts/job-summary-create-plugin-dev-zip.js
+
+      - name: Generate Slack notification payload
+        if: ${{ always() }}
+        id: slack_payload
+        env:
+          PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
+          ZIP_FILE_NAME: ${{ steps.prepare.outputs.zip_file_name }}
+          AWS_S3_PUBLIC_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
+          PLAYWRIGHT_REPORT_URL: ${{ steps.upload_playwright_report.outputs.playwright_report_url }}
+          WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          PAYLOAD=$(node .github/krokedil-wp-ci/scripts/slack-notify-create-plugin-dev-zip.js)
+          echo "payload<<SLACK_EOF" >> "$GITHUB_OUTPUT"
+          echo "$PAYLOAD" >> "$GITHUB_OUTPUT"
+          echo "SLACK_EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Send Slack notification
+        if: ${{ always() && steps.slack_payload.outputs.payload != '' }}
+        env:
+          SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS: ${{ secrets.SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS" ]; then
+            echo "SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS not set, skipping Slack notification."
+            exit 0
+          fi
+          curl -sf -X POST \
+            -H 'Content-Type: application/json' \
+            -d '${{ steps.slack_payload.outputs.payload }}' \
+            "$SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS"
