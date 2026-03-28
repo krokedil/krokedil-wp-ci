@@ -175,7 +175,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Playwright HTML report to S3 (optional)
-        if: inputs.aws_upload == true
+        if: ${{ always() }}
         id: upload_playwright_report
         env:
           PLAYWRIGHT_REPORT_DIR: .github/krokedil-wp-ci/tests/plugin-dev-zip/test-results/end-to-end/html-report
