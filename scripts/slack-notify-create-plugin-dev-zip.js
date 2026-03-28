@@ -4,7 +4,7 @@
  * ---------------------------------------------------------------------------
  * Purpose:
  *   Produce a Slack webhook JSON payload summarising the plugin dev zip build
- *   and Playwright test results. The payload is written to stdout so the
+ *   and Basic dev zip e2e test results. The payload is written to stdout so the
  *   calling workflow step can capture and POST it to a Slack incoming webhook.
  *
  * Inputs (env vars):
@@ -95,7 +95,7 @@ function dividerBlock() {
 // Playwright blocks for Slack
 
 /**
- * Build Block Kit blocks for the Playwright test results section.
+ * Build Block Kit blocks for the Basic dev zip e2e test results section.
  * @param {{ reportUrl?: string }} options
  * @returns {object[]} Array of Slack blocks (may be empty).
  */
@@ -105,7 +105,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
   if (!report) {
     if (reportUrl) {
       return [
-        sectionBlock("*Playwright test results*"),
+        sectionBlock("*Basic dev zip e2e test results*"),
         sectionBlock(
           `For full testing details, view Playwright report <${reportUrl}|here> and/or download full e2e-test-reports artifact from this workflow run. Both are available for 7 days.`,
         ),
@@ -124,7 +124,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
 
   if (testRows.size === 0) {
     const blocks = [
-      sectionBlock("*Playwright test results*\n\nNo test results found in the report."),
+      sectionBlock("*Basic dev zip e2e test results*\n\nNo test results found in the report."),
     ];
     if (reportUrl) {
       blocks.push(sectionBlock(`<${reportUrl}|View Playwright report>`));
@@ -146,7 +146,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
     : "";
 
   blocks.push(sectionBlock(" "));
-  blocks.push(sectionBlock("*Playwright test results*"));
+  blocks.push(sectionBlock("*Basic dev zip e2e test results*"));
   blocks.push(dividerBlock());
 
   if (totalUnexpected > 0) {
@@ -346,11 +346,11 @@ async function main() {
   const phpVersionDisplay = phpVersion || "latest";
   if (PLAYGROUND_MINIMAL_URL) {
     blocks.push(sectionBlock(" "));
-    blocks.push(sectionBlock("*Test dev zip using WordPress Playground (experimental)*"));
+    blocks.push(sectionBlock("*Test dev zip manually*"));
     blocks.push(dividerBlock());
     blocks.push(
       sectionBlock(
-        `You can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the links below:\n• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
+        `You can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the link below:\n• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)\n\nAlso remember that the dev zip easily can be deployed to a new or existing InstaWP site through seperate workflows.`,
       ),
     );
   }

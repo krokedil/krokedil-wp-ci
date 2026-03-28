@@ -345,7 +345,7 @@ function buildPlaywrightSummaryMarkdown({ reportUrl } = {}) {
   // If no tests were found at all, show a note.
   if (testRows.size === 0) {
     const lines = [
-      "## Playwright test results",
+      "## Basic dev zip e2e test results",
       "",
       "No test results found in the report.",
     ];
@@ -361,7 +361,7 @@ function buildPlaywrightSummaryMarkdown({ reportUrl } = {}) {
   // -------------------------------------------------------------------------
   // Summary line
   // -------------------------------------------------------------------------
-  lines.push("## Playwright test results");
+  lines.push("## Basic dev zip e2e test results");
   lines.push("");
 
   const totalExpected = stats.expected || 0;

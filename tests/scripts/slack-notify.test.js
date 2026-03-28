@@ -108,11 +108,11 @@ test("has dividers after bold section headings", () => {
   // Find the Playwright bold heading and check divider follows it
   for (let i = 0; i < result.blocks.length; i++) {
     const block = result.blocks[i];
-    if (block.type === "section" && block.text?.text === "*Playwright test results*") {
+    if (block.type === "section" && block.text?.text === "*Basic dev zip e2e test results*") {
       assert.equal(
         result.blocks[i + 1]?.type,
         "divider",
-        "divider should follow Playwright test results heading",
+        "divider should follow Basic dev zip e2e test results heading",
       );
     }
   }
@@ -123,7 +123,7 @@ test("uses bold section text for sub-headings, not header blocks", () => {
 
   const text = allBlockText(result.blocks);
   assert.ok(
-    text.includes("*Playwright test results*"),
+    text.includes("*Basic dev zip e2e test results*"),
     "Playwright heading should be bold in a section block",
   );
 });

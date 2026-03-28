@@ -140,12 +140,15 @@ async function main() {
   const phpVersionDisplay = phpVersion || "latest";
 
   if (PLAYGROUND_MINIMAL_URL) {
-    lines.push("\n## Test dev zip using WordPress Playground (experimental)");
+    lines.push("\n## Test dev zip manually");
     lines.push(
-      "You can test the created dev zip directly in [WordPress Playground](https://wordpress.org/playground/), which is an experimental project and functionality can be limited, through the links below:",
+      "You can test the created dev zip directly in [WordPress Playground](https://wordpress.org/playground/), which is an experimental project and functionality can be limited, through the link below:",
     );
     lines.push(
       `* [Test dev zip using WordPress Playground](${PLAYGROUND_MINIMAL_URL}) (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
+    );
+    lines.push(
+      "\nAlso remember that the dev zip easily can be deployed to a new or existing InstaWP site through seperate workflows.",
     );
   } else if (rawMetaProvided && !AWS_S3_PUBLIC_URL) {
     lines.push("\n_Playground link skipped: missing AWS_S3_PUBLIC_URL._");
