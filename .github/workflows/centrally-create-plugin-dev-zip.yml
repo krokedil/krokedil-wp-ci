@@ -21,6 +21,7 @@ on:
           - krokedil/budbee-for-woocommerce
           - SwedbankPay/swedbank-pay-woocommerce-paymentmenu
           - krokedil/klarna-payments-for-woocommerce
+          - krokedil/klarna-checkout-for-woocommerce
       ref:
         required: false
         type: string
@@ -70,7 +71,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .github/krokedil-wp-ci/.nvmrc
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: |
             .github/krokedil-wp-ci/package-lock.json
             .github/krokedil-wp-ci/tests/plugin-dev-zip/package-lock.json
