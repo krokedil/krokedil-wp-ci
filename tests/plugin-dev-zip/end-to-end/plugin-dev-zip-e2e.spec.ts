@@ -25,7 +25,9 @@ test.describe("With WooCommerce", () => {
     );
 
     // WordPress uses data-slug on plugin rows; more reliable than name matching.
-    const pluginRow = page.locator(`tr[data-slug="${playground.pluginSlug}"]`);
+    // Use .first() because WordPress may add a second row with the same data-slug
+    // for update notifications.
+    const pluginRow = page.locator(`tr[data-slug="${playground.pluginSlug}"]`).first();
     await expect(pluginRow).toBeVisible();
     await expect(pluginRow).toHaveClass(/(^|\s)active(\s|$)/);
 
@@ -102,7 +104,7 @@ test.describe("Without WooCommerce", () => {
       );
       const pluginRow = page.locator(
         `tr[data-slug="${playground.pluginSlug}"]`,
-      );
+      ).first();
       await expect(pluginRow).toBeVisible();
       await expect(pluginRow).toHaveClass(/(^|\s)inactive(\s|$)/);
     } else {
@@ -114,7 +116,7 @@ test.describe("Without WooCommerce", () => {
       );
       const pluginRow = page.locator(
         `tr[data-slug="${playground.pluginSlug}"]`,
-      );
+      ).first();
       await expect(pluginRow).toBeVisible();
       await expect(pluginRow).toHaveClass(/(^|\s)active(\s|$)/);
     }
