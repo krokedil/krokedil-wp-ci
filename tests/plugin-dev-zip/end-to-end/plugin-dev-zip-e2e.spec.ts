@@ -60,7 +60,10 @@ test.describe("With WooCommerce", () => {
 
       for (const assertion of metaPage.assertions || []) {
         const locator = page.locator(assertion.selector);
-        await expect(locator).toBeVisible();
+        // WooCommerce admin pages may render content via React after initial
+        // page load. Use a longer timeout so Playwright keeps polling while
+        // JS frameworks hydrate and fetch data.
+        await expect(locator).toBeVisible({ timeout: 30_000 });
 
         if (typeof assertion.text === "string") {
           if (assertion.match === "equals") {
