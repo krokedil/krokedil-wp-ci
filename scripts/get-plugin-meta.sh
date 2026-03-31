@@ -49,6 +49,8 @@ fi
 
 meta=$(jq -c '.' "$FILE")
 
-echo "plugin_slug=$slug" >> "$GITHUB_OUTPUT"
-echo "distribution_platform=$distribution_platform" >> "$GITHUB_OUTPUT"
-echo "plugin_meta_json=$meta" >> "$GITHUB_OUTPUT"
+{
+  echo "plugin_slug=$slug"
+  echo "distribution_platform=$distribution_platform"
+  echo "plugin_meta_json=$meta"
+} >> "$GITHUB_OUTPUT"

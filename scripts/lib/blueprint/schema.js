@@ -1,4 +1,4 @@
-// playground/schema.js
+// blueprint/schema.js
 // ---------------------------------------------------------------------------
 // Purpose
 //   Shared helpers for the WordPress Playground Blueprint JSON schema.

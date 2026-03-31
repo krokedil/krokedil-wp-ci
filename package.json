@@ -9,12 +9,20 @@
     "node": ">=20"
   },
   "scripts": {
-    "lint": "echo 'No lint setup yet'",
-    "test:scripts": "node --test tests/scripts"
+    "lint": "npm run lint:sh && npm run lint:js",
+    "lint:sh": "shellcheck scripts/*.sh scripts/**/*.sh",
+    "lint:js": "eslint scripts/",
+    "test:scripts": "node --test tests/scripts",
+    "sync:plugins": "node scripts/sync-plugin-list.js",
+    "check:plugins": "node scripts/sync-plugin-list.js --check",
+    "playground": "node scripts/playground.js"
   },
   "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "jq": "^1.7.2"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.4"
   }
 }

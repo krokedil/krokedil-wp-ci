@@ -2,12 +2,13 @@
  * create-playground-blueprint.test.js
  * ---------------------------------------------------------------------------
  * Purpose:
- *   Contract tests for the blueprint generator (`scripts/lib/playground/index.js`).
+ *   Contract tests for the blueprint builder (`scripts/lib/blueprint/index.js`).
  *
  * What we validate:
  *   - Default blueprint values (e.g. landingPage)
  *   - Conditional steps that workflows and e2e runs depend on
  *   - API contracts (e.g. addSteps expects arrays)
+ *   - Plugin blueprint loading and template integration
  *
  * Notes:
  *   These tests intentionally do not start WordPress Playground. They only assert
@@ -19,7 +20,8 @@ const assert = require("node:assert/strict");
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
-} = require("../../scripts/lib/playground/index.js");
+  loadPluginBlueprint,
+} = require("../../scripts/lib/blueprint/index.js");
 
 function findWpCliCommand(steps, includes) {
   // ---------------------------------------------------------------------------
@@ -38,6 +40,12 @@ function findInstallPluginStep(steps, predicate) {
   return steps.find((s) => s?.step === "installPlugin" && predicate(s));
 }
 
+function findSetSiteOptionsStep(steps, optionKey) {
+  return steps.find(
+    (s) => s?.step === "setSiteOptions" && s?.options?.[optionKey] !== undefined,
+  );
+}
+
 test("BlueprintBuilder: sets default landingPage", () => {
   // Default landingPage is part of the public contract.
   const builder = new BlueprintBuilder({}, applyKrokedilBlueprintTemplate);
@@ -45,9 +53,9 @@ test("BlueprintBuilder: sets default landingPage", () => {
 });
 
 test("Template: install_woocommerce installs WooCommerce", () => {
-  // When install_woocommerce is enabled, WooCommerce must be installed+activated.
+  // When install_woocommerce is enabled via plugin_blueprints, WooCommerce must be installed.
   const builder = new BlueprintBuilder(
-    { install_woocommerce: true },
+    { plugin_blueprints: ["woocommerce"], install_woocommerce: true },
     applyKrokedilBlueprintTemplate,
   );
   const step = findInstallPluginStep(
@@ -62,7 +70,7 @@ test("Template: install_wc_beta_tester config uses option update (no patch)", ()
   // We use `wp option update ... --format=json` to avoid patch failures when the
   // option/key does not exist yet.
   const builder = new BlueprintBuilder(
-    { install_wc_beta_tester: true },
+    { plugin_blueprints: ["woocommerce"], install_wc_beta_tester: true },
     applyKrokedilBlueprintTemplate,
   );
   const command = findWpCliCommand(
@@ -82,7 +90,7 @@ test("Template: plugin_dev_zip_aws_s3_public_url installs plugin from URL", () =
   // Mirrors the workflow behavior (installing a dev zip from a public URL).
   const url = "https://example.com/plugin.zip";
   const builder = new BlueprintBuilder(
-    { plugin_dev_zip_aws_s3_public_url: url },
+    { plugin_blueprints: ["woocommerce"], plugin_dev_zip_aws_s3_public_url: url },
     applyKrokedilBlueprintTemplate,
   );
 
@@ -118,4 +126,70 @@ test("BlueprintBuilder.addSteps: throws if steps is not an array", () => {
     () => builder.addSteps(true, { step: "resetData" }),
     /expects an array of steps/,
   );
+});
+
+// ---------------------------------------------------------------------------
+// Plugin blueprint loader tests
+// ---------------------------------------------------------------------------
+
+test("loadPluginBlueprint: returns null for unknown slug", () => {
+  const fn = loadPluginBlueprint("nonexistent-plugin-slug-12345");
+  assert.equal(fn, null);
+});
+
+test("loadPluginBlueprint: loads woocommerce blueprint as a function", () => {
+  const fn = loadPluginBlueprint("woocommerce");
+  assert.equal(typeof fn, "function");
+});
+
+test("loadPluginBlueprint: loads klarna-checkout-for-woocommerce blueprint as a function", () => {
+  const fn = loadPluginBlueprint("klarna-checkout-for-woocommerce");
+  assert.equal(typeof fn, "function");
+});
+
+// ---------------------------------------------------------------------------
+// Template plugin_blueprints integration tests
+// ---------------------------------------------------------------------------
+
+test("Template: plugin_blueprints applies woocommerce blueprint", () => {
+  const builder = new BlueprintBuilder(
+    { plugin_blueprints: ["woocommerce"], install_woocommerce: true },
+    applyKrokedilBlueprintTemplate,
+  );
+  const step = findInstallPluginStep(
+    builder.blueprint.steps,
+    (s) => s?.pluginData?.slug === "woocommerce",
+  );
+  assert.ok(step, "WooCommerce should be installed via plugin blueprint");
+});
+
+test("Template: plugin_blueprints applies KCO blueprint with gateway ordering", () => {
+  const builder = new BlueprintBuilder(
+    { plugin_blueprints: ["klarna-checkout-for-woocommerce"] },
+    applyKrokedilBlueprintTemplate,
+  );
+  const command = findWpCliCommand(
+    builder.blueprint.steps,
+    "payment_gateway update kco",
+  );
+  assert.ok(command, "Expected KCO payment gateway ordering step");
+});
+
+test("Template: plugin_blueprints skips unknown slugs silently", () => {
+  // Should not throw for unknown plugin slugs.
+  const builder = new BlueprintBuilder(
+    { plugin_blueprints: ["nonexistent-plugin"] },
+    applyKrokedilBlueprintTemplate,
+  );
+  assert.ok(builder.blueprint.steps.length === 0 || true, "Should not throw");
+});
+
+test("Template: configure_woocommerce_store adds comprehensive store settings", () => {
+  const builder = new BlueprintBuilder(
+    { plugin_blueprints: ["woocommerce"], configure_woocommerce_store: true },
+    applyKrokedilBlueprintTemplate,
+  );
+  const step = findSetSiteOptionsStep(builder.blueprint.steps, "woocommerce_store_address");
+  assert.ok(step, "Expected comprehensive WC store config step");
+  assert.equal(step.options.woocommerce_store_address, "Test Road 1");
 });

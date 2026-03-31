@@ -45,7 +45,7 @@ The canonical parser is `scripts/get-plugin-meta.sh`. Prefer using it rather tha
 
 - Tests under `tests/plugin-dev-zip` are ESM (`"type": "module"`).
 - Playwright and WordPress Playground CLI require Node >= 18; recommend Node 20.
-- E2E should reuse the shared blueprint generator in `scripts/lib/playground/index.js`.
+- E2E should reuse the shared blueprint generator in `scripts/lib/blueprint/index.js`.
 - Keep changes minimal and aligned with existing patterns.
 
 ## When editing code

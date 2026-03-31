@@ -1,0 +1,197 @@
+# Centrally Build Plugin
+#
+# Single composite action that handles the entire shared build prefix for all
+# centrally-* workflows: checkout → Node setup → get meta → prepare zip →
+# wp-org build → artifact upload → validation.
+#
+# Supports two checkout modes:
+#   - Normal: checks out an external plugin repo with a PAT.
+#   - Dummy:  uses the bundled dummy fixture plugin for testing.
+#
+# Inputs: plugin repo, ref, PAT, plus optional toggles for
+#   external ref resolution, and artifact upload.
+# Outputs: plugin metadata, zip file name, resolved ref/SHA.
+
+name: Centrally Build Plugin
+description: Checkout, set up Node, prepare plugin dev zip, build wp-org zip, upload artifact, and validate.
+
+inputs:
+  plugin_repo:
+    description: "Plugin repository display name or owner/repo, or 'dummy-plugin-for-repo-tests'."
+    required: true
+  ref:
+    description: "Branch, tag, or commit SHA to check out from the plugin repo."
+    required: false
+    default: "main"
+  classic_personal_access_token:
+    description: "PAT with repo access for checking out external plugin repos."
+    required: false
+    default: ""
+  upload_artifact:
+    description: "Upload the built zip as a GitHub Actions artifact."
+    required: false
+    default: "false"
+  artifact_retention_days:
+    description: "Retention days for uploaded artifacts."
+    required: false
+    default: "1"
+
+outputs:
+  is_dummy:
+    description: "'true' if using the dummy fixture plugin."
+    value: ${{ steps.mode.outputs.is_dummy }}
+  plugin_slug:
+    description: "Plugin slug from plugin-meta.json."
+    value: ${{ steps.meta.outputs.plugin_slug }}
+  distribution_platform:
+    description: "Distribution platform from plugin-meta.json."
+    value: ${{ steps.meta.outputs.distribution_platform }}
+  plugin_meta_json:
+    description: "Minified JSON contents of plugin-meta.json."
+    value: ${{ steps.meta.outputs.plugin_meta_json }}
+  zip_file_name:
+    description: "Generated zip file name."
+    value: ${{ steps.prepare.outputs.zip_file_name }}
+  ref_name:
+    description: "Resolved ref name (branch/tag)."
+    value: ${{ steps.resolve-ref.outputs.ref_name }}
+  sha:
+    description: "Resolved commit SHA."
+    value: ${{ steps.resolve-ref.outputs.sha }}
+
+runs:
+  using: composite
+  steps:
+    # -----------------------------------------------------------------------
+    # Checkout
+    # -----------------------------------------------------------------------
+    - name: Resolve plugin repo from display name
+      id: resolve
+      shell: bash
+      run: |
+        REPO_ROOT="${GITHUB_ACTION_PATH}/../../.."
+        RESOLVED=$(node "${REPO_ROOT}/scripts/resolve-plugin-cli.js" \
+          "${{ inputs.plugin_repo }}" \
+          --plugins-json "${REPO_ROOT}/.github/plugins.json")
+        echo "resolved_repo=$RESOLVED" >> "$GITHUB_OUTPUT"
+
+    - name: Determine if using dummy fixture plugin
+      id: mode
+      shell: bash
+      run: |
+        if [ "${{ steps.resolve.outputs.resolved_repo }}" = "dummy-plugin-for-repo-tests" ]; then
+          echo "is_dummy=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "is_dummy=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Checkout external plugin repository if not using dummy fixture plugin
+      if: steps.mode.outputs.is_dummy != 'true'
+      uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      with:
+        repository: ${{ steps.resolve.outputs.resolved_repo }}
+        ref: ${{ inputs.ref }}
+        token: ${{ inputs.classic_personal_access_token }}
+        fetch-depth: 1
+
+    - name: Checkout CI helpers
+      uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      with:
+        repository: krokedil/krokedil-wp-ci
+        path: .github/krokedil-wp-ci
+        ref: ${{ github.ref }}
+        fetch-depth: 1
+
+    - name: Set up fixture plugin for testing
+      if: steps.mode.outputs.is_dummy == 'true'
+      shell: bash
+      run: |
+        FIXTURE=.github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests
+        cp "${FIXTURE}/dummy-plugin-for-repo-tests.php" .
+        cp "${FIXTURE}/.github/plugin-meta.json" .github/plugin-meta.json
+        cp "${FIXTURE}/.kernlignore" .
+        cp "${FIXTURE}/composer-dependencies.lock" .
+
+    # -----------------------------------------------------------------------
+    # Resolve ref/SHA
+    # -----------------------------------------------------------------------
+    - name: Resolve ref and SHA
+      id: resolve-ref
+      shell: bash
+      run: |
+        if [ "${{ steps.mode.outputs.is_dummy }}" != "true" ]; then
+          # External plugin repo: resolve SHA from the checked-out repo and use
+          # the caller-supplied ref, since github.sha/ref_name belong to the CI
+          # repo, not the plugin repo.
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "ref_name=${{ inputs.ref }}" >> "$GITHUB_OUTPUT"
+        else
+          # Default / dummy fixture: use the github context directly — the
+          # workflow is running against its own repo so the context is correct.
+          echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "ref_name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+        fi
+
+    # -----------------------------------------------------------------------
+    # Node.js setup
+    # -----------------------------------------------------------------------
+    - name: Set up Node.js
+      uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+      with:
+        node-version-file: .github/krokedil-wp-ci/.nvmrc
+        cache: npm
+        cache-dependency-path: .github/krokedil-wp-ci/package-lock.json
+
+    - name: Install CI helper dependencies
+      working-directory: .github/krokedil-wp-ci
+      shell: bash
+      run: npm ci
+
+    # -----------------------------------------------------------------------
+    # Plugin metadata and zip preparation
+    # -----------------------------------------------------------------------
+    - name: Get plugin meta
+      id: meta
+      shell: bash
+      run: bash .github/krokedil-wp-ci/scripts/get-plugin-meta.sh
+
+    - name: Prepare plugin dev zip
+      id: prepare
+      shell: bash
+      env:
+        PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+        DISTRIBUTION_PLATFORM: ${{ steps.meta.outputs.distribution_platform }}
+        GITHUB_REF_NAME: ${{ steps.resolve-ref.outputs.ref_name }}
+        GITHUB_SHA: ${{ steps.resolve-ref.outputs.sha }}
+      run: bash .github/krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
+
+    # -----------------------------------------------------------------------
+    # Build and artifact upload
+    # -----------------------------------------------------------------------
+    - name: Generate plugin zip (WordPress.org)
+      id: wporg-build
+      if: steps.meta.outputs.distribution_platform == 'wordpress-org'
+      uses: krokedil/action-wordpress-plugin-build-zip@c7e63d9847b9775a3d9f1ff0204ade98016f335d # krokedil-improvements
+      env:
+        SLUG: ${{ steps.meta.outputs.plugin_slug }}
+      with:
+        upload-plugin-artifact: ${{ inputs.upload_artifact == 'true' }}
+        retention-days: ${{ inputs.artifact_retention_days }}
+        artifact-name: ${{ steps.prepare.outputs.zip_file_name }}
+
+    - name: Upload prepared plugin as artifact (non-WordPress.org)
+      if: steps.meta.outputs.distribution_platform != 'wordpress-org' && inputs.upload_artifact == 'true'
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      with:
+        name: ${{ steps.prepare.outputs.zip_file_name }}
+        path: zipfile
+        retention-days: ${{ inputs.artifact_retention_days }}
+
+    # -----------------------------------------------------------------------
+    # Validation
+    # -----------------------------------------------------------------------
+    - name: Validate prepared plugin folder
+      shell: bash
+      env:
+        PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+      run: bash .github/krokedil-wp-ci/scripts/validate-prepared-plugin-folder.sh

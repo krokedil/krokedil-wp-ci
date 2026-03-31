@@ -14,17 +14,25 @@
  *   - PLUGIN_META_JSON     : Raw JSON string with plugin metadata (optional).
  *   - WORKFLOW_RUN_URL     : URL to the GitHub Actions workflow run that triggered this.
  *
+ * Inputs (env vars, continued):
+ *   - SLACK_WEBHOOK_URL     : Slack incoming webhook URL (optional).
+ *                             If set, the payload is POSTed to this URL.
+ *                             If not set, the payload is written to stdout and no request is made.
+ *
  * Outputs:
  *   - Writes a Slack Block Kit JSON payload to stdout (`blocks` array + `text` fallback).
+ *   - If SLACK_WEBHOOK_URL is set, POSTs the payload to the webhook.
  *
  * Behavior:
  *   1. Reads the same data sources as job-summary-create-plugin-dev-zip.js.
  *   2. Formats the content for Slack mrkdwn (not GitHub markdown).
  *   3. Appends a "Triggered by workflow run" link at the end.
+ *   4. If SLACK_WEBHOOK_URL is set, sends the payload via fetch().
  *
  * Failure modes:
  *   - Malformed PLUGIN_META_JSON => log error & exit(1).
  *   - Missing optional env vars => respective sections are omitted.
+ *   - Slack webhook POST failure => log error & exit(1).
  *
  * ---------------------------------------------------------------------------
  */
@@ -39,7 +47,7 @@ const {
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
-} = require("./lib/playground");
+} = require("./lib/blueprint");
 
 // ---------------------------------------------------------------------------
 // Slack mrkdwn helpers
@@ -289,8 +297,11 @@ async function main() {
   // Construct playground URL if preconditions met
   let PLAYGROUND_MINIMAL_URL = "";
   if (AWS_S3_PUBLIC_URL) {
+    const pluginSlug = getOptionalString(META, "slug");
+
     const blueprintVariables = {
       blogname: pluginName ? `${pluginName} dev zip` : "Plugin dev zip",
+      plugin_blueprints: ["woocommerce", pluginSlug].filter(Boolean),
       install_woocommerce: true,
       install_wc_beta_tester: true,
       plugin_dev_zip_aws_s3_public_url: AWS_S3_PUBLIC_URL,
@@ -367,7 +378,28 @@ async function main() {
     ? `Created dev zip: ${ZIP_FILE_NAME}.zip`
     : "Created dev zip";
   const payload = JSON.stringify({ text: fallbackText, blocks });
-  process.stdout.write(payload);
+  process.stdout.write(payload + "\n");
+
+  // Send to Slack if webhook URL is provided
+  const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL || "";
+  if (!SLACK_WEBHOOK_URL) {
+    console.error("SLACK_WEBHOOK_URL not set, skipping Slack notification.");
+    return;
+  }
+
+  const res = await fetch(SLACK_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`Slack webhook failed (${res.status}): ${body}`);
+    process.exit(1);
+  }
+
+  console.error("Slack notification sent successfully.");
 }
 
 main().catch((e) => {

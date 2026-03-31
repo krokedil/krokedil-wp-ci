@@ -46,7 +46,7 @@ Caller repos provide `.github/plugin-meta.json` with `slug` (required), `distrib
 
 ### Tests
 - Tests under `tests/plugin-dev-zip` are ESM (`"type": "module"`)
-- E2E reuses shared blueprint generator from `scripts/lib/playground/index.js`
+- E2E reuses shared blueprint generator from `scripts/lib/blueprint/index.js`
 - PHP version control: `KROKEDIL_TEST_PHP_VERSIONS=8.2,8.3` (default: 8.3)
 
 ### Code style

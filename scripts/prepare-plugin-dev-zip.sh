@@ -45,7 +45,12 @@ fi
 DISTRIBUTION_PLATFORM="${DISTRIBUTION_PLATFORM:-}"
 
 # Optional ZIP suffix from env; empty if not provided.
+# Only allow safe characters to prevent path traversal or shell injection.
 ZIP_FILE_SUFFIX="${ZIP_FILE_SUFFIX:-}"
+if [[ "$ZIP_FILE_SUFFIX" =~ [^A-Za-z0-9._-] ]]; then
+  echo "::error::ZIP_FILE_SUFFIX contains invalid characters: ${ZIP_FILE_SUFFIX}" >&2
+  exit 1
+fi
 
 # Generate zip file name
 BRANCH_NAME="${GITHUB_REF_NAME:-${GITHUB_REF#refs/heads/}}"
@@ -79,7 +84,7 @@ fi
 
 # If DISTRIBUTION_PLATFORM is not 'wordpress-org', run the following code
 if [ "$DISTRIBUTION_PLATFORM" != "wordpress-org" ]; then
-  echo DISTRIBUTION_PLATFORM is set as \"$DISTRIBUTION_PLATFORM\". Since it is not "wordpress-org", we will be preparing zip manually >&2
+  echo "DISTRIBUTION_PLATFORM is set as \"${DISTRIBUTION_PLATFORM}\". Since it is not \"wordpress-org\", we will be preparing zip manually" >&2
 
   # Determine ignore file strategy: prefer .distignore, then .kernlignore, else no ignore file.
   IGNORE_ARG=()

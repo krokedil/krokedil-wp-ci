@@ -1,6 +1,8 @@
+.env
 node_modules
 wp-content
 zipfile
+.playground-tmp
 .DS_Store
 .claude/settings.local.json
 .claude/todos.local.json

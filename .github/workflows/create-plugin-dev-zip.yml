@@ -19,11 +19,6 @@ on:
         type: string
         default: "8.3"
         description: "PHP versions used for basic testing of the plugin dev zip: 8.4,8.3,8.2,8.1,8.0,7.4 (comma-separated) or 'all'."
-      use_fixture_plugin:
-        required: false
-        type: boolean
-        default: false
-        description: "If true, use the dummy fixture plugin from this repo instead of the caller's plugin. Used for testing the workflow itself."
     secrets:
       AWS_ACCESS_KEY_ID_KROKEDIL_PLUGIN_DEV_ZIP:
         required: false
@@ -58,14 +53,6 @@ jobs:
           path: .github/krokedil-wp-ci
           ref: develop-tests
           fetch-depth: 1
-
-      - name: Set up fixture plugin for testing
-        if: inputs.use_fixture_plugin
-        run: |
-          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/dummy-plugin-for-repo-tests.php .
-          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.github/plugin-meta.json .github/plugin-meta.json
-          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.kernlignore .
-          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/composer-dependencies.lock .
 
       - name: Set up Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
@@ -151,7 +138,7 @@ jobs:
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: .github/krokedil-wp-ci/tests/plugin-dev-zip/playground-snapshots
-          key: playground-${{ runner.os }}-${{ hashFiles('zipfile/**', '.github/krokedil-wp-ci/scripts/lib/playground/**') }}
+          key: playground-${{ runner.os }}-${{ hashFiles('zipfile/**', '.github/krokedil-wp-ci/scripts/lib/blueprint/**') }}
           restore-keys: |
             playground-${{ runner.os }}-
 
@@ -191,31 +178,13 @@ jobs:
           PLAYWRIGHT_REPORT_URL: ${{ steps.upload_playwright_report.outputs.playwright_report_url }}
         run: node .github/krokedil-wp-ci/scripts/job-summary-create-plugin-dev-zip.js
 
-      - name: Generate Slack notification payload
+      - name: Send Slack notification
         if: ${{ always() }}
-        id: slack_payload
         env:
           PLUGIN_META_JSON: ${{ steps.meta.outputs.plugin_meta_json }}
           ZIP_FILE_NAME: ${{ steps.prepare.outputs.zip_file_name }}
           AWS_S3_PUBLIC_URL: ${{ steps.upload.outputs.aws_s3_public_url }}
           PLAYWRIGHT_REPORT_URL: ${{ steps.upload_playwright_report.outputs.playwright_report_url }}
           WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          PAYLOAD=$(node .github/krokedil-wp-ci/scripts/slack-notify-create-plugin-dev-zip.js)
-          echo "payload<<SLACK_EOF" >> "$GITHUB_OUTPUT"
-          echo "$PAYLOAD" >> "$GITHUB_OUTPUT"
-          echo "SLACK_EOF" >> "$GITHUB_OUTPUT"
-
-      - name: Send Slack notification
-        if: ${{ always() && steps.slack_payload.outputs.payload != '' }}
-        env:
-          SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS: ${{ secrets.SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS }}
-        run: |
-          if [ -z "$SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS" ]; then
-            echo "SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS not set, skipping Slack notification."
-            exit 0
-          fi
-          curl -sf -X POST \
-            -H 'Content-Type: application/json' \
-            -d '${{ steps.slack_payload.outputs.payload }}' \
-            "$SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS"
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_KROKEDIL_E2E_NOTIFICATIONS }}
+        run: node .github/krokedil-wp-ci/scripts/slack-notify-create-plugin-dev-zip.js

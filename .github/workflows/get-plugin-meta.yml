@@ -3,12 +3,6 @@ permissions:
   contents: read
 on:
   workflow_call:
-    inputs:
-      use_fixture_plugin:
-        required: false
-        type: boolean
-        default: false
-        description: "If true, use the dummy fixture plugin from this repo instead of the caller's plugin. Used for testing the workflow itself."
     outputs:
       plugin_slug:
         description: "Plugin slug from plugin-meta.json"
@@ -39,11 +33,6 @@ jobs:
           path: .github/krokedil-wp-ci
           ref: develop-tests
           fetch-depth: 1
-
-      - name: Set up fixture plugin for testing
-        if: inputs.use_fixture_plugin
-        run: |
-          cp .github/krokedil-wp-ci/tests/scripts/fixtures/dummy-plugin-for-repo-tests/.github/plugin-meta.json .github/plugin-meta.json
 
       - name: Read plugin-meta.json
         id: read

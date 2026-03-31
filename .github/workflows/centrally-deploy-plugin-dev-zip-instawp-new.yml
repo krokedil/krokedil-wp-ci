@@ -1,28 +1,40 @@
-name: Deploy Plugin Dev Zip to New InstaWP Site
+# Centrally Deploy Plugin Dev Zip to New InstaWP Site
+#
+# Creates a new InstaWP site and deploys a plugin dev zip to it.
+# Use this when the plugin repo itself doesn't have InstaWP secrets,
+# or select "dummy-plugin-for-repo-tests" to test the workflow itself.
+#
+# Inputs: plugin repo (dropdown), branch/SHA, desired site name.
+# Checkout: external plugin at root, CI helpers at .github/krokedil-wp-ci.
+
+name: Centrally Deploy Plugin Dev Zip to New InstaWP Site
 permissions:
   contents: read
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
+      plugin_repo:
+        required: true
+        type: choice
+        description: "Plugin repository to deploy (dummy-plugin-for-repo-tests tests the workflow itself)."
+        options:
+          # --- BEGIN GENERATED PLUGIN OPTIONS ---
+          - Budbee for WooCommerce
+          - Klarna Payments for WooCommerce
+          - Kustom Checkout for WooCommerce
+          - Swedbank Pay WooCommerce Payment Menu
+          - dummy-plugin-for-repo-tests
+          # --- END GENERATED PLUGIN OPTIONS ---
+      ref:
+        required: false
+        type: string
+        default: "main"
+        description: "Branch, tag, or commit SHA to check out from the plugin repo. Ignored for dummy-plugin-for-repo-tests."
       instawp_url:
         required: false
         type: string
         default: ""
-        description: "Desired site name for the new InstaWP site (e.g. my-plugin-test). Auto-generated if omitted."
-    secrets:
-      INSTAWP_API_TOKEN:
-        required: true
-      E2E_API_KEY:
-        required: false
-      E2E_API_SECRET:
-        required: false
-    outputs:
-      instawp_site_id:
-        description: "InstaWP site ID of the newly created site."
-        value: ${{ jobs.deploy.outputs.instawp_site_id }}
-      instawp_site_url:
-        description: "URL of the newly created InstaWP site."
-        value: ${{ jobs.deploy.outputs.instawp_site_url }}
+        description: "Desired name for the new InstaWP site (e.g. my-plugin-test). Auto-generated if omitted."
 
 jobs:
   deploy:
@@ -34,52 +46,16 @@ jobs:
       instawp_site_url: ${{ steps.create-site.outputs.site_url }}
 
     steps:
-      - name: Checkout plugin repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - name: Build plugin
+        id: build
+        uses: ./.github/actions/centrally-build-plugin
         with:
-          fetch-depth: 1
-
-      - name: Checkout CI helpers
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          repository: krokedil/krokedil-wp-ci
-          path: .github/krokedil-wp-ci
-          ref: develop-tests
-          fetch-depth: 1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version-file: .github/krokedil-wp-ci/.nvmrc
-
-      - name: Install CI helper dependencies
-        working-directory: .github/krokedil-wp-ci
-        run: npm ci
+          plugin_repo: ${{ inputs.plugin_repo }}
+          ref: ${{ inputs.ref }}
+          classic_personal_access_token: ${{ secrets.CLASSIC_PERSONAL_ACCESS_TOKEN }}
 
       - name: Install InstaWP CLI
         run: npm install -g @instawp/cli@0.0.1-beta.2
-
-      - name: Get plugin meta
-        id: meta
-        run: bash .github/krokedil-wp-ci/scripts/get-plugin-meta.sh
-
-      - name: Prepare plugin dev zip
-        id: prepare
-        env:
-          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
-          DISTRIBUTION_PLATFORM: ${{ steps.meta.outputs.distribution_platform }}
-        run: bash .github/krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
-
-      # For WordPress.org plugins, prepare-plugin-dev-zip.sh does not create
-      # zipfile/ (it relies on the wp.org build action). Create it here instead
-      # so the sync step has a consistent source regardless of distribution type.
-      - name: Create plugin directory for sync (WordPress.org plugins)
-        if: steps.meta.outputs.distribution_platform == 'wordpress-org'
-        env:
-          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
-        run: |
-          mkdir -p "zipfile/${PLUGIN_SLUG}"
-          rsync -av --exclude='zipfile' . "zipfile/${PLUGIN_SLUG}/"
 
       - name: Create InstaWP site
         id: create-site
@@ -96,7 +72,7 @@ jobs:
 
       - name: Upload plugin files to InstaWP site
         env:
-          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          PLUGIN_SLUG: ${{ steps.build.outputs.plugin_slug }}
           INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
         run: |
           # Arrange plugin files into wp-content structure expected by instawp sync push.
@@ -111,8 +87,6 @@ jobs:
         env:
           PLUGIN_META_FILE: .github/plugin-meta.json
           BLUEPRINT_OUTPUT_PATH: /tmp/generated-blueprint.json
-          E2E_API_KEY: ${{ secrets.E2E_API_KEY }}
-          E2E_API_SECRET: ${{ secrets.E2E_API_SECRET }}
         run: |
           node .github/krokedil-wp-ci/scripts/instawp/generate-blueprint.js
 
@@ -127,7 +101,7 @@ jobs:
 
       - name: Activate plugin
         env:
-          PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
+          PLUGIN_SLUG: ${{ steps.build.outputs.plugin_slug }}
           INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
         run: |
           instawp wp "$INSTAWP_SITE_ID" plugin activate "$PLUGIN_SLUG"

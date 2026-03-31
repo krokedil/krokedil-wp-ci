@@ -38,7 +38,7 @@ export default async function globalSetup(_config: FullConfig) {
     applyKrokedilBlueprintTemplate,
     computeSnapshotCacheKey,
     ensureSnapshotExtracted,
-  } = requireForShared("../../../scripts/lib/playground/index.js") as any;
+  } = requireForShared("../../../scripts/lib/blueprint/index.js") as any;
   const { loadMeta, getOptionalString } = requireForShared(
     "../../../scripts/lib/plugin-meta.js",
   ) as any;
@@ -63,6 +63,7 @@ export default async function globalSetup(_config: FullConfig) {
   // ---------------------------------------------------------------------------
   const snapshotBlueprintVariables: Record<string, any> = {
     blogname,
+    plugin_blueprints: ["woocommerce", pluginSlug],
     reset_wordpress: true,
     install_storefront: true,
     configure_title_permalinks: true,
@@ -75,6 +76,7 @@ export default async function globalSetup(_config: FullConfig) {
     snapshotBlueprintVariables,
     applyKrokedilBlueprintTemplate,
   );
+
   await snapshotBuilder.assertValidWithSchema();
 
   const snapshotBlueprintJson =

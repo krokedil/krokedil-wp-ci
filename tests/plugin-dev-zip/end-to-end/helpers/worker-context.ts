@@ -41,7 +41,7 @@ export async function buildPlaygroundWorkerContext(): Promise<PlaygroundWorkerCo
     BlueprintBuilder,
     applyKrokedilBlueprintTemplate,
     computeSnapshotCacheKey,
-  } = requireForShared("../../../../scripts/lib/playground/index.js") as any;
+  } = requireForShared("../../../../scripts/lib/blueprint/index.js") as any;
   const {
     loadMeta,
     getOptionalString,
@@ -109,6 +109,7 @@ export async function buildPlaygroundWorkerContext(): Promise<PlaygroundWorkerCo
 
   const snapshotBlueprintVariables: Record<string, any> = {
     blogname,
+    plugin_blueprints: ["woocommerce", pluginSlug],
     reset_wordpress: true,
     install_storefront: true,
     configure_title_permalinks: true,
@@ -121,6 +122,7 @@ export async function buildPlaygroundWorkerContext(): Promise<PlaygroundWorkerCo
     snapshotBlueprintVariables,
     applyKrokedilBlueprintTemplate,
   );
+
   await snapshotBuilder.assertValidWithSchema();
   const snapshotBlueprintJson =
     JSON.stringify(snapshotBuilder.blueprint, null, 2) + "\n";

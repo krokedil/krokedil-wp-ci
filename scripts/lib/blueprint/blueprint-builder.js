@@ -1,4 +1,4 @@
-// playground/blueprint-builder.js
+// blueprint/blueprint-builder.js
 // ---------------------------------------------------------------------------
 // Purpose
 //   Programmatic WordPress Playground Blueprint builder.
@@ -44,11 +44,14 @@ const {
  *
  * @property {boolean} [install_woocommerce] If true, installs WooCommerce.
  * @property {boolean} [configure_woocommerce] If true, configures WooCommerce settings and creates basic test content.
+ * @property {boolean} [configure_woocommerce_store] If true, applies comprehensive WC store configuration.
  * @property {string}  [woocommerce_default_country] Default: "SE"
  * @property {string}  [woocommerce_currency]        Default: "SEK"
  * @property {string}  [woocommerce_price_num_decimals] Default: "2"
  *
  * @property {boolean} [install_wc_beta_tester] If true, installs WooCommerce Beta Tester and switches to RC channel.
+ *
+ * @property {string[]} [plugin_blueprints] Array of plugin slugs whose blueprints should be applied.
  *
  * @property {string}  [custom_wp_cli_command] If set, runs this wp-cli command after setup.
  *
@@ -122,11 +125,19 @@ class BlueprintBuilder {
     }
   }
 
-  async generateUrl() {
+  async generatePlaygroundUrl() {
     await this.assertValidWithSchema();
     const jsonString = JSON.stringify(this.blueprint);
     const b64 = Buffer.from(jsonString, "utf8").toString("base64");
     return `https://playground.wordpress.net/#${b64}`;
+  }
+
+  async generateUrl() {
+    return this.generatePlaygroundUrl();
+  }
+
+  toJSON() {
+    return this.blueprint;
   }
 
   async saveToFile(fileName = "blueprint.json", dirPath = "./") {

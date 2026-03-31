@@ -52,7 +52,7 @@ export async function buildServerBlueprintJson(options: {
 }) {
   const requireForShared = createRequire(import.meta.url);
   const { BlueprintBuilder, applyKrokedilBlueprintTemplate } = requireForShared(
-    "../../../../scripts/lib/playground/index.js",
+    "../../../../scripts/lib/blueprint/index.js",
   ) as any;
 
   const serverBuilder = new BlueprintBuilder(

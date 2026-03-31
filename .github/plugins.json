@@ -1,0 +1,24 @@
+{
+  "plugins": [
+    {
+      "displayName": "Budbee for WooCommerce",
+      "repository": "krokedil/budbee-for-woocommerce",
+      "abbreviation": "budbee"
+    },
+    {
+      "displayName": "Klarna Payments for WooCommerce",
+      "repository": "krokedil/klarna-payments-for-woocommerce",
+      "abbreviation": "kp"
+    },
+    {
+      "displayName": "Kustom Checkout for WooCommerce",
+      "repository": "krokedil/klarna-checkout-for-woocommerce",
+      "abbreviation": "kco"
+    },
+    {
+      "displayName": "Swedbank Pay WooCommerce Payment Menu",
+      "repository": "SwedbankPay/swedbank-pay-woocommerce-paymentmenu",
+      "abbreviation": "swedbank"
+    }
+  ]
+}

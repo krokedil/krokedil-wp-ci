@@ -83,12 +83,7 @@ See `examples/basic-deploy-instawp/` for a minimal usage example.
 
 ### InstaWP-related metadata
 
-When creating a new site, the workflow reads InstaWP-related settings from `.github/plugin-meta.json`:
-
-- `instawp.pluginWcBlueprintUrl` (optional): URL to a WooCommerce blueprint to apply to a new site.
-- `instawp.pluginCredentialsOptionPatches` (optional): Array of plugin credential option patches to apply. Values are read from GitHub secrets via env vars.
-- `instawp.paymentGatewayId` (optional): WooCommerce payment gateway ID to set as the default on the new site.
-- `instawp.useCheckoutBlock` (optional): If true, uses Checkout block; if false, uses the checkout shortcode.
+When creating a new site, plugin-specific configuration (WooCommerce setup, credentials, payment gateway order, checkout mode, etc.) is handled by blueprint modules under `scripts/lib/blueprint/plugins/`. See existing modules for examples.
 
 ## Helper scripts
 
@@ -103,12 +98,24 @@ The `scripts/` directory contains the shared shell and Node utilities used by th
 
 These scripts are meant to be invoked from within the reusable workflows, not directly from plugin repos.
 
+## Managing the centrally-dispatched plugin list
+
+The dropdown of plugins available in the `centrally-*` workflows is maintained in a single file: `.github/plugins.json`.
+
+To add or remove a plugin:
+
+1. Edit `.github/plugins.json` — add or remove an entry with `displayName` (human-readable name shown in the dropdown) and `repository` (`owner/repo`). Keep entries sorted A-Z by `displayName`.
+2. Run `npm run sync:plugins` — this propagates the changes to the workflow dropdown options. Plugin resolution at runtime reads `plugins.json` directly.
+3. Commit the result.
+
+To verify the list is in sync without making changes, run `npm run check:plugins`.
+
 ## WordPress Playground blueprint schema
 
 Blueprint JSON schema validation in this repo is intentionally offline-only.
 
-- The schema is vendored at [scripts/lib/playground/blueprint-schema.json](scripts/lib/playground/blueprint-schema.json).
-- Validation code lives in [scripts/lib/playground/schema.js](scripts/lib/playground/schema.js) and will not fetch the schema from the network.
+- The schema is vendored at [scripts/lib/blueprint/blueprint-schema.json](scripts/lib/blueprint/blueprint-schema.json).
+- Validation code lives in [scripts/lib/blueprint/schema.js](scripts/lib/blueprint/schema.js) and will not fetch the schema from the network.
 
 When you bump WordPress Playground packages (typically [tests/plugin-dev-zip/package.json](tests/plugin-dev-zip/package.json)), you should also refresh the vendored schema by copying it from the installed Playground packages and committing the updated JSON file.
 

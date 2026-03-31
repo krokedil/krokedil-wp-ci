@@ -45,7 +45,7 @@ const { writeJobSummary, buildPlaywrightSummaryMarkdown } = require("./lib/job-s
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
-} = require("./lib/playground");
+} = require("./lib/blueprint");
 
 async function main() {
   // ---------------------------------------------------------------------------
@@ -89,8 +89,11 @@ async function main() {
   // ---------------------------------------------------------------------------
   let PLAYGROUND_MINIMAL_URL = "";
   if (AWS_S3_PUBLIC_URL) {
+    const pluginSlug = getOptionalString(META, "slug");
+
     const blueprintVariables = {
       blogname: pluginName ? `${pluginName} dev zip` : "Plugin dev zip",
+      plugin_blueprints: ["woocommerce", pluginSlug].filter(Boolean),
       install_woocommerce: true,
       install_wc_beta_tester: true,
       plugin_dev_zip_aws_s3_public_url: AWS_S3_PUBLIC_URL,

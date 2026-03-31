@@ -1,4 +1,4 @@
-// playground/snapshot-cache.js
+// blueprint/snapshot-cache.js
 // ---------------------------------------------------------------------------
 // Purpose
 //   Build and cache WordPress Playground snapshots for reuse across tests.
@@ -20,7 +20,6 @@
 
 const {
   copyFileSync,
-  createReadStream,
   existsSync,
   mkdirSync,
   openSync,

@@ -1,18 +1,36 @@
-// playground/krokedil-template.js
+// blueprint/template.js
 // ---------------------------------------------------------------------------
 // Purpose
-//   Centralized WordPress Playground Blueprint step template used across this repo.
+//   Main blueprint template for Krokedil WP CI. Handles WordPress-level setup
+//   and orchestrates plugin blueprints.
 //
 // Inputs
 //   - builder: BlueprintBuilder instance (must support builder.addSteps + builder.getVar)
 //
-// Behavior
-//   - Adds steps based on boolean/string variables.
+// Variables used
+//   - configure_debug_logs          : Enable WP debug + centralized logging.
+//   - reset_wordpress               : Reset default content and remove default plugins.
+//   - install_storefront            : Install + activate Storefront theme.
+//   - configure_storefront          : Apply Storefront-specific settings.
+//   - configure_title_permalinks    : Set site title and enable pretty permalinks.
+//   - blogname                      : WordPress site title (default: "Krokedil WP CI Site").
+//   - activate_plugin_slugs         : Space-separated plugin slugs to activate via wp-cli.
+//   - plugin_blueprints             : Array of plugin slugs whose blueprints should be applied.
+//   - custom_wp_cli_command         : Run arbitrary wp-cli command after setup.
+//   - generate_site_health_report   : Write wp-site-health-info.json.
+//   - collect_composer_dependencies : Collect composer-dependencies.lock from all plugins.
+//   - generate_wc_status_report     : Write wc-system-report.json.
+//
+//   Plus all variables consumed by plugin blueprints (e.g. woocommerce.js variables).
+
+const { loadPluginBlueprint } = require("./plugins/loader.js");
 
 function applyKrokedilBlueprintTemplate(builder) {
   const vars = builder.variables;
 
+  // ---------------------------------------------------------------------------
   // 1. Configure debug to true and logging in a centralized folder
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.configure_debug_logs, [
     {
       step: "mkdir",
@@ -29,7 +47,9 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
+  // ---------------------------------------------------------------------------
   // 2. Delete default posts, comments and plugins
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.reset_wordpress, [
     { step: "resetData" },
     {
@@ -42,7 +62,9 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 3 Install and activate Storefront theme, then delete inactive themes
+  // ---------------------------------------------------------------------------
+  // 3. Install and activate Storefront theme, then delete inactive themes
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.install_storefront, [
     {
       step: "installTheme",
@@ -60,7 +82,9 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 4 Configure Storefront theme settings
+  // ---------------------------------------------------------------------------
+  // 4. Configure Storefront theme settings
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.configure_storefront, [
     {
       step: "wp-cli",
@@ -72,7 +96,9 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
+  // ---------------------------------------------------------------------------
   // 5. Set site title and configure permalinks
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.configure_title_permalinks, [
     {
       step: "setSiteOptions",
@@ -87,85 +113,41 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 6. Install WooCommerce
-  builder.addSteps(!!vars.install_woocommerce, [
-    {
-      step: "installPlugin",
-      pluginData: { resource: "wordpress.org/plugins", slug: "woocommerce" },
-      options: { activate: true },
-    },
+  // ---------------------------------------------------------------------------
+  // 6. Configure general site options (for full store setups)
+  // ---------------------------------------------------------------------------
+  builder.addSteps(!!vars.configure_woocommerce_store, [
     {
       step: "setSiteOptions",
       options: {
-        woocommerce_onboarding_profile: { skipped: true },
-      },
-    },
-    {
-      step: "wp-cli",
-      command: "wp transient delete _wc_activation_redirect",
-    },
-  ]);
-
-  // 7. Configure WooCommerce
-  builder.addSteps(!!vars.configure_woocommerce, [
-    {
-      step: "setSiteOptions",
-      options: {
+        date_format: "Y-m-d",
+        time_format: "H:i",
+        start_of_week: "1",
+        timezone_string: "Europe/Stockholm",
+        blog_public: "0",
+        blogname: "WooCommerce demoshop",
+        blogdescription: "By Krokedil",
         show_on_front: "page",
-        woocommerce_default_country: builder.getVar(
-          "woocommerce_default_country",
-          "SE",
-        ),
-        woocommerce_currency: builder.getVar("woocommerce_currency", "SEK"),
-        woocommerce_price_num_decimals: builder.getVar(
-          "woocommerce_price_num_decimals",
-          "2",
-        ),
       },
-    },
-    {
-      step: "wp-cli",
-      command:
-        "wp wc product create --name='Simple product' --sku='simple-product' --regular_price='99.99' --virtual=false --downloadable=false --user='admin'",
-    },
-    {
-      step: "runPHP",
-      code: "<?php require_once '/wordpress/wp-load.php'; $page = get_page_by_path('refund_returns'); if ($page) { wp_publish_post($page->ID); update_option('woocommerce_terms_page_id', $page->ID); }",
-    },
-    {
-      step: "runPHP",
-      code: "<?php require_once '/wordpress/wp-load.php'; $shop_page_id = get_option('woocommerce_shop_page_id'); if ($shop_page_id) { update_option('page_on_front', $shop_page_id); update_option('show_on_front', 'page'); }",
-    },
-    {
-      step: "runPHP",
-      code: "<?php require_once '/wordpress/wp-load.php'; $checkout_page_id = get_option('woocommerce_checkout_page_id'); if ($checkout_page_id) { wp_update_post(['ID' => $checkout_page_id, 'post_content' => '[woocommerce_checkout]']); }",
     },
   ]);
 
-  // 8. Install WC and WP Beta Tester plugins and update to RC versions
-  builder.addSteps(!!vars.install_wc_beta_tester, [
-    {
-      step: "installPlugin",
-      pluginData: {
-        resource: "url",
-        url: "https://github.com/woocommerce/woocommerce/releases/download/wc-beta-tester-3.0.0/woocommerce-beta-tester.zip",
-      },
-      options: {
-        activate: true,
-      },
-    },
-    {
-      step: "wp-cli",
-      command:
-        'wp option update wc_beta_tester_options \'{"channel":"rc"}\' --format=json',
-    },
-    {
-      step: "wp-cli",
-      command: "wp plugin update woocommerce",
-    },
-  ]);
+  // ---------------------------------------------------------------------------
+  // 7. Apply plugin blueprints
+  //    Plugin blueprints are loaded by slug from scripts/lib/blueprint/plugins/.
+  //    The plugin_blueprints variable is an array of slugs to apply.
+  // ---------------------------------------------------------------------------
+  const pluginSlugs = vars.plugin_blueprints || [];
+  for (const slug of pluginSlugs) {
+    const applyFn = loadPluginBlueprint(slug);
+    if (applyFn) {
+      applyFn(builder);
+    }
+  }
 
-  // 9. Install and activate plugin dev zip
+  // ---------------------------------------------------------------------------
+  // 8. Install and activate plugin dev zip from URL
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.plugin_dev_zip_aws_s3_public_url, [
     {
       step: "installPlugin",
@@ -177,7 +159,9 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 10. Activate specific plugins
+  // ---------------------------------------------------------------------------
+  // 9. Activate specific plugins by slug
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.activate_plugin_slugs, [
     {
       step: "wp-cli",
@@ -188,7 +172,9 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 11. Run custom wp cli command
+  // ---------------------------------------------------------------------------
+  // 10. Run custom wp cli command
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.custom_wp_cli_command, [
     {
       step: "wp-cli",
@@ -196,7 +182,9 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 12. Write WordPress site health info to krokedil-wp-ci folder after blueprint setup
+  // ---------------------------------------------------------------------------
+  // 11. Write WordPress site health info
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.generate_site_health_report, [
     {
       step: "runPHP",
@@ -204,7 +192,9 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 13. Collect composer-dependencies.lock from all plugins that have one
+  // ---------------------------------------------------------------------------
+  // 12. Collect composer-dependencies.lock from all plugins that have one
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.collect_composer_dependencies, [
     {
       step: "runPHP",
@@ -212,7 +202,9 @@ function applyKrokedilBlueprintTemplate(builder) {
     },
   ]);
 
-  // 14. Write WooCommerce status report to krokedil-wp-ci folder after blueprint setup
+  // ---------------------------------------------------------------------------
+  // 13. Write WooCommerce status report
+  // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.generate_wc_status_report, [
     {
       step: "runPHP",
