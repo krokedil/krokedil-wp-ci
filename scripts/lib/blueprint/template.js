@@ -44,6 +44,7 @@ function applyKrokedilBlueprintTemplate(builder) {
         WP_DEBUG_DISPLAY: false,
         WP_DEBUG_LOG: "/wordpress/wp-content/uploads/krokedil-wp-ci/debug.log",
         WC_LOG_DIR: "/wordpress/wp-content/uploads/krokedil-wp-ci/wc-logs",
+        CONCATENATE_SCRIPTS: false,
       },
     },
   ]);
