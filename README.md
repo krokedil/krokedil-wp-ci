@@ -112,12 +112,12 @@ These scripts are meant to be invoked from within the reusable workflows, not di
 
 ## Managing the centrally-dispatched plugin list
 
-The dropdown of plugins available in the `centrally-*` workflows is maintained in a single file: `.github/plugins.json`.
+The dropdown of plugins available in the `centrally-*` workflows is maintained in a single file: `.github/projects.json`.
 
 To add or remove a plugin:
 
-1. Edit `.github/plugins.json` — add or remove an entry with `displayName` (human-readable name shown in the dropdown) and `repository` (`owner/repo`). Keep entries sorted A-Z by `displayName`.
-2. Run `npm run sync:plugins` — this propagates the changes to the workflow dropdown options. Plugin resolution at runtime reads `plugins.json` directly.
+1. Edit `.github/projects.json` — add or remove an entry with `displayName` (human-readable name shown in the dropdown) and `repository` (`owner/repo`). Keep entries sorted A-Z by `displayName`.
+2. Run `npm run sync:plugins` — this propagates the changes to the workflow dropdown options. Plugin resolution at runtime reads `projects.json` directly.
 3. Commit the result.
 
 To verify the list is in sync without making changes, run `npm run check:plugins`.
@@ -161,7 +161,7 @@ If you see errors like `node: bad option: --test`, you're running an older Node 
 `scripts/playground.js` starts a WordPress Playground server with a plugin installed. Useful for inspecting pages and authoring `pluginDevZipE2e` assertions in `plugin-meta.json`.
 
 ```bash
-# List available plugins (from .github/plugins.json)
+# List available plugins (from .github/projects.json)
 npm run playground -- --list
 
 # Start Playground with a plugin (clones from GitHub automatically)
@@ -184,7 +184,7 @@ npm run playground -- dummy
 
 Options:
 
-- `<plugin>` (required) – abbreviation, slug, or display name from `.github/plugins.json`. Use `dummy` for the in-repo fixture.
+- `<plugin>` (required) – abbreviation, slug, or display name from `.github/projects.json`. Use `dummy` for the in-repo fixture.
 - `--blueprint <type>` – blueprint preset to use. Defaults to `full-store`. See below.
 - `--dir <path>` – use an existing local directory instead of cloning from GitHub.
 - `--branch <name>` – clone/checkout a specific branch (ignored when `--dir` is used).

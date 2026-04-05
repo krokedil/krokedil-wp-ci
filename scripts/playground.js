@@ -8,7 +8,7 @@
 // Usage
 //   node scripts/playground.js <plugin> [--blueprint <type>] [--dir <path>] [--clone [--branch <name>]] [--codegen] [--list]
 //
-//   <plugin>      Abbreviation, slug, or display name from .github/plugins.json.
+//   <plugin>      Abbreviation, slug, or display name from .github/projects.json.
 //                 Special value "dummy" uses the in-repo fixture plugin.
 //   --blueprint   Blueprint preset: full-store (default), minimal, general-e2e.
 //                 See scripts/lib/blueprint/presets.js for details.
@@ -30,14 +30,14 @@
 //   The --dir flag takes precedence over the env var.
 //
 // Inputs
-//   - .github/plugins.json for plugin registry (abbreviation, repository, slug,
+//   - .github/projects.json for plugin registry (abbreviation, repository, slug,
 //     distributionPlatform, downloadUrl).
 //   - scripts/lib/blueprint/ for BlueprintBuilder + template.
 //   - Plugin's .github/plugin-meta.json for slug (optional — falls back to repo name).
 //
 // Behavior
-//   1. Resolve the plugin identifier to a plugins.json entry.
-//   2. Obtain the plugin source based on flags and plugins.json config:
+//   1. Resolve the plugin identifier to a projects.json entry.
+//   2. Obtain the plugin source based on flags and projects.json config:
 //      a. --dir / env var: use existing local directory.
 //      b. --clone (or fallback): shallow clone from GitHub, build, auto-mount.
 //      c. Remote download: install via blueprint installPlugin step (no local dir).
@@ -74,7 +74,7 @@ const { buildPlugin, applyDevVersionSuffix } = require("./lib/build-plugin.js");
 // ---------------------------------------------------------------------------
 
 const REPO_ROOT = path.resolve(__dirname, "..");
-const PLUGINS_JSON_PATH = path.join(REPO_ROOT, ".github", "plugins.json");
+const PROJECTS_JSON_PATH = path.join(REPO_ROOT, ".github", "projects.json");
 const PLAYGROUND_TMP_DIR = path.join(REPO_ROOT, ".playground-tmp");
 const DUMMY_PLUGIN_DIR = path.join(
   REPO_ROOT,
@@ -112,7 +112,7 @@ function printList(plugins) {
  * Returns "wordpress-org" if distributionPlatform is "wordpress-org" and slug is set,
  * "url" if downloadUrl is set, or null if neither applies.
  *
- * @param {object} plugin Plugin entry from plugins.json.
+ * @param {object} plugin Plugin entry from projects.json.
  * @returns {"wordpress-org" | "url" | null}
  */
 function getRemoteDownloadSource(plugin) {
@@ -349,7 +349,7 @@ async function main() {
     (a, i) => !a.startsWith("--") && !flagValueIndices.has(i),
   );
 
-  const plugins = loadPlugins(PLUGINS_JSON_PATH);
+  const plugins = loadPlugins(PROJECTS_JSON_PATH);
 
   if (listFlag) {
     printList(plugins);

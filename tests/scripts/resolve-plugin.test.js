@@ -7,7 +7,7 @@
  *
  * Fixtures:
  *   - Inline plugin arrays for unit tests.
- *   - .github/plugins.json (the real registry) for CLI integration tests.
+ *   - .github/projects.json (the real registry) for CLI integration tests.
  *
  * Env vars: none
  */
@@ -187,7 +187,7 @@ test("display name is not passthrough", () => {
 });
 
 // ---------------------------------------------------------------------------
-// CLI integration tests (uses real .github/plugins.json)
+// CLI integration tests (uses real .github/projects.json)
 // ---------------------------------------------------------------------------
 
 test("CLI resolves a known abbreviation", () => {

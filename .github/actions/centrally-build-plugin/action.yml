@@ -72,7 +72,7 @@ runs:
         REPO_ROOT="${GITHUB_ACTION_PATH}/../../.."
         RESOLVED=$(node "${REPO_ROOT}/scripts/resolve-plugin-cli.js" \
           "${{ inputs.plugin_repo }}" \
-          --plugins-json "${REPO_ROOT}/.github/plugins.json")
+          --plugins-json "${REPO_ROOT}/.github/projects.json")
         echo "resolved_repo=$RESOLVED" >> "$GITHUB_OUTPUT"
 
     - name: Determine if using dummy fixture plugin

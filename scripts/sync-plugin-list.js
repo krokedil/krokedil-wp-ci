@@ -2,7 +2,7 @@
  * sync-plugin-list.js
  * ---------------------------------------------------------------------------
  * Purpose:
- *   Reads .github/plugins.json and propagates the plugin list to the
+ *   Reads .github/projects.json and propagates the plugin list to the
  *   `options:` block in each centrally-* workflow file (display names).
  *
  * Usage:
@@ -10,7 +10,7 @@
  *   node scripts/sync-plugin-list.js --check  # dry-run, exit 1 if files differ
  *
  * Inputs:
- *   - .github/plugins.json — array of { displayName, repository } objects.
+ *   - .github/projects.json — array of { displayName, repository } objects.
  *
  * Behaviour:
  *   - Sorts plugins A-Z by displayName before generating output.
@@ -19,7 +19,7 @@
  *   - Uses marker comments to find replacement regions in target files.
  *
  * Failure modes:
- *   - Exits 1 if plugins.json is missing, malformed, or has dupes.
+ *   - Exits 1 if projects.json is missing, malformed, or has dupes.
  *   - Exits 1 in --check mode if any target file would change.
  *   - Exits 1 if a target file is missing a marker comment pair.
  */
@@ -28,7 +28,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
-const PLUGINS_JSON_PATH = path.join(ROOT, ".github", "plugins.json");
+const PROJECTS_JSON_PATH = path.join(ROOT, ".github", "projects.json");
 
 // ---------------------------------------------------------------------------
 // Marker comments
@@ -45,20 +45,25 @@ const WORKFLOW_FILES = [
 ].map((f) => path.join(ROOT, f));
 
 // ---------------------------------------------------------------------------
-// Read and validate plugins.json
+// Read and validate projects.json
 // ---------------------------------------------------------------------------
 
 function loadPlugins() {
-  if (!fs.existsSync(PLUGINS_JSON_PATH)) {
-    console.error(`Error: ${PLUGINS_JSON_PATH} not found.`);
+  if (!fs.existsSync(PROJECTS_JSON_PATH)) {
+    console.error(`Error: ${PROJECTS_JSON_PATH} not found.`);
     process.exit(1);
   }
 
-  const data = JSON.parse(fs.readFileSync(PLUGINS_JSON_PATH, "utf8"));
+  const data = JSON.parse(fs.readFileSync(PROJECTS_JSON_PATH, "utf8"));
   const plugins = data.plugins;
 
   if (!Array.isArray(plugins) || plugins.length === 0) {
-    console.error('Error: plugins.json must have a non-empty "plugins" array.');
+    console.error('Error: projects.json must have a non-empty "plugins" array.');
+    process.exit(1);
+  }
+
+  if (!Array.isArray(data.packages)) {
+    console.error('Error: projects.json must have a "packages" array (may be empty).');
     process.exit(1);
   }
 

@@ -12,18 +12,18 @@
  * Inputs:
  *   <identifier>      Plugin abbreviation, slug, display name, owner/repo, or
  *                      "dummy-plugin-for-repo-tests".
- *   --plugins-json    Path to plugins.json. Defaults to
- *                      <repo-root>/.github/plugins.json.
+ *   --plugins-json    Path to projects.json. Defaults to
+ *                      <repo-root>/.github/projects.json.
  *
  * Behaviour:
  *   - Owner/repo values and "dummy-plugin-for-repo-tests" pass through as-is.
- *   - Other identifiers are resolved against plugins.json.
+ *   - Other identifiers are resolved against projects.json.
  *   - Prints the resolved repository to stdout.
  *
  * Failure modes:
  *   - No identifier provided: exits 1.
  *   - Unknown identifier: exits 1 with error message on stderr.
- *   - Missing plugins.json: exits 1 with error on stderr.
+ *   - Missing projects.json: exits 1 with error on stderr.
  *
  * Dependencies:
  *   None beyond Node.js built-ins — safe to run before `npm ci`.
@@ -53,9 +53,9 @@ if (!identifier) {
   process.exit(1);
 }
 
-// Default plugins.json path: <script-dir>/../.github/plugins.json
+// Default projects.json path: <script-dir>/../.github/projects.json
 if (!pluginsJsonPath) {
-  pluginsJsonPath = path.resolve(__dirname, "..", ".github", "plugins.json");
+  pluginsJsonPath = path.resolve(__dirname, "..", ".github", "projects.json");
 }
 
 // ---------------------------------------------------------------------------

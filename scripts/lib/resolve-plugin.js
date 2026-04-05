@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Purpose:
  *   Standalone module for resolving plugin identifiers against the plugin
- *   registry (.github/plugins.json). Zero npm dependencies — uses only
+ *   registry (.github/projects.json). Zero npm dependencies — uses only
  *   Node.js built-ins so it can run before `npm ci` in CI.
  *
  * Exports:
@@ -25,8 +25,8 @@ const fs = require("node:fs");
 // ---------------------------------------------------------------------------
 
 /**
- * Read .github/plugins.json and return the `plugins` array.
- * @param {string} pluginsJsonPath Absolute path to plugins.json.
+ * Read .github/projects.json and return the `plugins` array.
+ * @param {string} pluginsJsonPath Absolute path to projects.json.
  * @returns {{ displayName: string, repository: string, abbreviation?: string, slug?: string, distributionPlatform?: string, downloadUrl?: string }[]}
  */
 function loadPlugins(pluginsJsonPath) {
@@ -39,7 +39,7 @@ function loadPlugins(pluginsJsonPath) {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a user-provided identifier to a plugins.json entry.
+ * Resolve a user-provided identifier to a projects.json entry.
  * Matches (case-insensitive) against abbreviation, repo slug (part after /),
  * plugin slug, then display name — in that order.
  *

@@ -4,10 +4,10 @@
  * Purpose:
  *   Tests for the sync-plugin-list.js helper functions (options generation,
  *   marker replacement) and end-to-end validation that the checked-in
- *   workflow files are in sync with .github/plugins.json.
+ *   workflow files are in sync with .github/projects.json.
  *
  * Fixtures:
- *   - .github/plugins.json (the real registry)
+ *   - .github/projects.json (the real registry)
  *
  * Env vars: none
  */
@@ -30,10 +30,10 @@ test("--check exits 0 when files are in sync", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Validation: unsorted plugins.json should be accepted (sorted by code)
+// Validation: unsorted projects.json should be accepted (sorted by code)
 // ---------------------------------------------------------------------------
 
-test("accepts unsorted plugins.json without error", () => {
+test("accepts unsorted projects.json without error", () => {
   const unsorted = JSON.stringify({
     plugins: [
       {
@@ -45,6 +45,7 @@ test("accepts unsorted plugins.json without error", () => {
         repository: "org/alpha-plugin",
       },
     ],
+    packages: [],
   });
 
   // Should exit 0 — no longer an error.
@@ -192,6 +193,7 @@ test("accepts wordpress-org plugin with slug", () => {
         distributionPlatform: "wordpress-org",
       },
     ],
+    packages: [],
   });
 
   execFileSync("node", ["-e", buildInlineScript(valid)], {
@@ -211,6 +213,7 @@ test("accepts downloadUrl plugin with slug", () => {
         downloadUrl: "https://example.com/plugin.zip",
       },
     ],
+    packages: [],
   });
 
   execFileSync("node", ["-e", buildInlineScript(valid)], {
@@ -218,6 +221,44 @@ test("accepts downloadUrl plugin with slug", () => {
     stdio: "pipe",
   });
   assert.ok(true, "Should exit 0 for valid downloadUrl plugin");
+});
+
+// ---------------------------------------------------------------------------
+// Validation: packages array
+// ---------------------------------------------------------------------------
+
+test("rejects missing packages array", () => {
+  const invalid = JSON.stringify({
+    plugins: [
+      { displayName: "Alpha Plugin", repository: "org/alpha-plugin" },
+    ],
+  });
+
+  assert.throws(
+    () => {
+      execFileSync("node", ["-e", buildInlineScript(invalid)], {
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+    },
+    { status: 1 },
+    "Should exit 1 for missing packages array",
+  );
+});
+
+test("accepts empty packages array", () => {
+  const valid = JSON.stringify({
+    plugins: [
+      { displayName: "Alpha Plugin", repository: "org/alpha-plugin" },
+    ],
+    packages: [],
+  });
+
+  execFileSync("node", ["-e", buildInlineScript(valid)], {
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  assert.ok(true, "Should exit 0 for empty packages array");
 });
 
 // ---------------------------------------------------------------------------
@@ -249,6 +290,11 @@ function buildInlineScript(jsonString) {
 
     if (!Array.isArray(plugins) || plugins.length === 0) {
       console.error("empty");
+      process.exit(1);
+    }
+
+    if (!Array.isArray(data.packages)) {
+      console.error("missing packages array");
       process.exit(1);
     }
 
