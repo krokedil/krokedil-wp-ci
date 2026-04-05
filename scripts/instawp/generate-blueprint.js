@@ -28,6 +28,7 @@ const path = require("node:path");
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
+  getPresetVariables,
 } = require("../lib/blueprint");
 
 function main() {
@@ -54,12 +55,13 @@ function main() {
     process.exit(1);
   }
 
+  const blueprintVars = getPresetVariables("full-store", {
+    pluginSlug: slug,
+    repoSlug: slug,
+  });
+
   const builder = new BlueprintBuilder(
-    {
-      plugin_blueprints: ["woocommerce", slug],
-      install_woocommerce: true,
-      configure_woocommerce_store: true,
-    },
+    blueprintVars,
     applyKrokedilBlueprintTemplate,
   );
 

@@ -12,10 +12,11 @@
 //   - reset_wordpress               : Reset default content and remove default plugins.
 //   - install_storefront            : Install + activate Storefront theme.
 //   - configure_storefront          : Apply Storefront-specific settings.
-//   - configure_title_permalinks    : Set site title and enable pretty permalinks.
+//   - configure_general_site_options : Set general site options (title, permalinks, date/time, etc.).
 //   - blogname                      : WordPress site title (default: "Krokedil WP CI Site").
 //   - activate_plugin_slugs         : Space-separated plugin slugs to activate via wp-cli.
 //   - plugin_blueprints             : Array of plugin slugs whose blueprints should be applied.
+//   - install_extra_plugins         : Array of installPlugin resource defs (wordpress.org or URL).
 //   - custom_wp_cli_command         : Run arbitrary wp-cli command after setup.
 //   - generate_site_health_report   : Write wp-site-health-info.json.
 //   - collect_composer_dependencies : Collect composer-dependencies.lock from all plugins.
@@ -97,13 +98,20 @@ function applyKrokedilBlueprintTemplate(builder) {
   ]);
 
   // ---------------------------------------------------------------------------
-  // 5. Set site title and configure permalinks
+  // 5. Configure general site options
   // ---------------------------------------------------------------------------
-  builder.addSteps(!!vars.configure_title_permalinks, [
+  builder.addSteps(!!vars.configure_general_site_options, [
     {
       step: "setSiteOptions",
       options: {
         blogname: builder.getVar("blogname", "Krokedil WP CI Site"),
+        blogdescription: "By Krokedil",
+        date_format: "Y-m-d",
+        time_format: "H:i",
+        start_of_week: "1",
+        timezone_string: "Europe/Stockholm",
+        blog_public: "0",
+        show_on_front: "page",
       },
     },
     {
@@ -114,39 +122,23 @@ function applyKrokedilBlueprintTemplate(builder) {
   ]);
 
   // ---------------------------------------------------------------------------
-  // 6. Configure general site options (for full store setups)
+  // 6. Install extra plugins from wordpress.org or URL
+  //    Runs before plugin activation and blueprints so the plugin files are
+  //    present when activation and configuration happen.
   // ---------------------------------------------------------------------------
-  builder.addSteps(!!vars.configure_woocommerce_store, [
-    {
-      step: "setSiteOptions",
-      options: {
-        date_format: "Y-m-d",
-        time_format: "H:i",
-        start_of_week: "1",
-        timezone_string: "Europe/Stockholm",
-        blog_public: "0",
-        blogname: "WooCommerce demoshop",
-        blogdescription: "By Krokedil",
-        show_on_front: "page",
+  const extraPlugins = vars.install_extra_plugins || [];
+  for (const pluginDef of extraPlugins) {
+    builder.addSteps(true, [
+      {
+        step: "installPlugin",
+        pluginData: pluginDef,
+        options: { activate: true },
       },
-    },
-  ]);
-
-  // ---------------------------------------------------------------------------
-  // 7. Apply plugin blueprints
-  //    Plugin blueprints are loaded by slug from scripts/lib/blueprint/plugins/.
-  //    The plugin_blueprints variable is an array of slugs to apply.
-  // ---------------------------------------------------------------------------
-  const pluginSlugs = vars.plugin_blueprints || [];
-  for (const slug of pluginSlugs) {
-    const applyFn = loadPluginBlueprint(slug);
-    if (applyFn) {
-      applyFn(builder);
-    }
+    ]);
   }
 
   // ---------------------------------------------------------------------------
-  // 8. Install and activate plugin dev zip from URL
+  // 7. Install and activate plugin dev zip from URL
   // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.plugin_dev_zip_aws_s3_public_url, [
     {
@@ -160,7 +152,9 @@ function applyKrokedilBlueprintTemplate(builder) {
   ]);
 
   // ---------------------------------------------------------------------------
-  // 9. Activate specific plugins by slug
+  // 8. Activate specific plugins by slug
+  //    Runs before plugin blueprints so the plugin is active when its blueprint
+  //    configures settings, payment gateways, etc.
   // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.activate_plugin_slugs, [
     {
@@ -171,6 +165,19 @@ function applyKrokedilBlueprintTemplate(builder) {
         " --skip-plugins --skip-themes",
     },
   ]);
+
+  // ---------------------------------------------------------------------------
+  // 9. Apply plugin blueprints
+  //    Plugin blueprints are loaded by slug from scripts/lib/blueprint/plugins/.
+  //    The plugin_blueprints variable is an array of slugs to apply.
+  // ---------------------------------------------------------------------------
+  const pluginSlugs = vars.plugin_blueprints || [];
+  for (const slug of pluginSlugs) {
+    const applyFn = loadPluginBlueprint(slug);
+    if (applyFn) {
+      applyFn(builder);
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // 10. Run custom wp cli command

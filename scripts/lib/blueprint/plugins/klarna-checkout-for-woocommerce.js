@@ -19,14 +19,39 @@ function applyKlarnaCheckoutBlueprint(builder) {
   const sharedSecret = process.env.KCO_TEST_SHARED_SECRET_EU || "";
 
   // Set KCO credentials (only if env vars are available)
-  builder.addSteps(!!merchantId || !!sharedSecret, [
+  builder.addSteps(true, [
     {
       step: "setSiteOptions",
       options: {
         woocommerce_kco_settings: {
           enabled: "yes",
+          title: "Klarna",
+          description: "",
+          select_another_method_text: "Other payment methods",
+          testmode: "yes",
+          logging: "yes",
+          checkout_layout: "two_column_right",
           test_merchant_id_eu: merchantId,
           test_shared_secret_eu: sharedSecret,
+          allow_separate_shipping: "no",
+          shipping_methods_in_iframe: "yes",
+          shipping_details: "",
+          send_product_urls: "yes",
+          dob_mandatory: "no",
+          title_mandatory: "no",
+          add_terms_and_conditions_checkbox: "yes",
+          allowed_customer_types: "B2CB",
+          prefill_consent: "yes",
+          quantity_fields: "yes",
+          show_subtotal_detail: "woo",
+          color_button: "",
+          color_button_text: "",
+          color_checkbox: "",
+          color_checkbox_checkmark: "",
+          color_header: "",
+          color_link: "",
+          radius_border: "",
+          checkout_flow: "embedded",
         },
       },
     },

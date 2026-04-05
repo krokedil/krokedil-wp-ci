@@ -25,6 +25,7 @@ const {
 } = require("./snapshot-cache.js");
 
 const { loadPluginBlueprint } = require("./plugins/loader.js");
+const { getPresetVariables, PRESET_NAMES } = require("./presets.js");
 
 module.exports = {
   BlueprintBuilder,
@@ -39,4 +40,7 @@ module.exports = {
   hashDirectoryForCache,
 
   loadPluginBlueprint,
+
+  getPresetVariables,
+  PRESET_NAMES,
 };

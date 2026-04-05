@@ -40,11 +40,11 @@ const {
  * @property {boolean} [reset_wordpress] If true, resets default content and removes default plugins.
  * @property {boolean} [install_storefront] If true, installs + activates the Storefront theme (and deletes inactive themes).
  * @property {boolean} [configure_storefront] If true, applies Storefront-specific settings (widgets + pagination).
- * @property {boolean} [configure_title_permalinks] If true, sets site title and enables pretty permalinks.
+ * @property {boolean} [configure_general_site_options] If true, sets general site options (title, permalinks, date/time, etc.).
  *
  * @property {boolean} [install_woocommerce] If true, installs WooCommerce.
- * @property {boolean} [configure_woocommerce] If true, configures WooCommerce settings and creates basic test content.
- * @property {boolean} [configure_woocommerce_store] If true, applies comprehensive WC store configuration.
+ * @property {boolean} [configure_woocommerce_minimal] If true, applies minimal WC config (country, currency, test product, pages, COD payment, coming-soon off). Also applied implicitly when configure_woocommerce_fully is true.
+ * @property {boolean} [configure_woocommerce_fully] If true, applies comprehensive Swedish test store settings on top of minimal configuration.
  * @property {string}  [woocommerce_default_country] Default: "SE"
  * @property {string}  [woocommerce_currency]        Default: "SEK"
  * @property {string}  [woocommerce_price_num_decimals] Default: "2"
@@ -57,6 +57,8 @@ const {
  *
  * @property {boolean} [generate_site_health_report] If true, writes wp-site-health-info.json to /wp-content/uploads/krokedil-wp-ci.
  * @property {boolean} [generate_wc_status_report] If true, writes wc-system-report.json to /wp-content/uploads/krokedil-wp-ci.
+ *
+ * @property {Array<{resource: string, slug?: string, url?: string}>} [install_extra_plugins] Additional plugins to install from wordpress.org or URL. Each entry is an installPlugin resource definition.
  *
  * @property {string}  [plugin_dev_zip_aws_s3_public_url] If set, installs/activates plugin zip from URL.
  * @property {string}  [activate_plugin_slugs] Space-separated plugin slugs to activate via wp-cli.
