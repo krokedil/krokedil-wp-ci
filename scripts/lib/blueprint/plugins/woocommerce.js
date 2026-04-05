@@ -82,6 +82,7 @@ function applyWooCommerceBlueprint(builder) {
         step: "runPHP",
         code: "<?php require_once '/wordpress/wp-load.php'; $shop_page_id = get_option('woocommerce_shop_page_id'); if ($shop_page_id) { update_option('page_on_front', $shop_page_id); update_option('show_on_front', 'page'); }",
       },
+      // Set up checkout page to use the checkout shortcode
       {
         step: "runPHP",
         code: "<?php require_once '/wordpress/wp-load.php'; $checkout_page_id = get_option('woocommerce_checkout_page_id'); if ($checkout_page_id) { wp_update_post(['ID' => $checkout_page_id, 'post_content' => '[woocommerce_checkout]']); }",
@@ -92,20 +93,6 @@ function applyWooCommerceBlueprint(builder) {
         options: {
           woocommerce_coming_soon: "no",
           woocommerce_store_pages_only: "no",
-        },
-      },
-      // Enable Cash on Delivery so checkout is functional
-      {
-        step: "setSiteOptions",
-        options: {
-          woocommerce_cod_settings: {
-            enabled: "yes",
-            title: "Cash on delivery",
-            description: "Pay with cash upon delivery.",
-            instructions: "Pay with cash upon delivery.",
-            enable_for_methods: [],
-            enable_for_virtual: "yes",
-          },
         },
       },
     ],
@@ -209,6 +196,20 @@ function applyWooCommerceBlueprint(builder) {
         woocommerce_anonymize_completed_orders: {
           number: "",
           unit: "months",
+        },
+      },
+    },
+    // Enable Cash on Delivery so checkout is functional
+    {
+      step: "setSiteOptions",
+      options: {
+        woocommerce_cod_settings: {
+          enabled: "yes",
+          title: "Cash on delivery",
+          description: "Pay with cash upon delivery.",
+          instructions: "Pay with cash upon delivery.",
+          enable_for_methods: [],
+          enable_for_virtual: "yes",
         },
       },
     },

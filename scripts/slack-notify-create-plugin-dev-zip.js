@@ -58,7 +58,10 @@ const {
  * @returns {string}
  */
 function escapeSlack(text) {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 // ---------------------------------------------------------------------------
@@ -132,7 +135,9 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
 
   if (testRows.size === 0) {
     const blocks = [
-      sectionBlock("*Basic dev zip e2e test results*\n\nNo test results found in the report."),
+      sectionBlock(
+        "*Basic dev zip e2e test results*\n\nNo test results found in the report.",
+      ),
     ];
     if (reportUrl) {
       blocks.push(sectionBlock(`<${reportUrl}|View Playwright report>`));
@@ -220,10 +225,15 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
   const env = parseUsedVersionsAnnotation(firstUsedVersionsAnnotation);
   if (env && (env.wordpress || env.theme || env.plugins.length)) {
     const envRows = [];
-    if (env.wordpress) envRows.push({ left: "WordPress", right: escapeSlack(env.wordpress) });
-    if (env.theme) envRows.push({ left: "Theme", right: escapeSlack(env.theme) });
+    if (env.wordpress)
+      envRows.push({ left: "WordPress", right: escapeSlack(env.wordpress) });
+    if (env.theme)
+      envRows.push({ left: "Theme", right: escapeSlack(env.theme) });
     for (const plugin of env.plugins) {
-      envRows.push({ left: escapeSlack(plugin.name), right: escapeSlack(plugin.version) });
+      envRows.push({
+        left: escapeSlack(plugin.name),
+        right: escapeSlack(plugin.version),
+      });
     }
     blocks.push(sectionBlock("*Test environment*"));
     for (let i = 0; i < envRows.length; i += ROWS_PER_BLOCK) {
@@ -232,9 +242,7 @@ function buildPlaywrightBlocks({ reportUrl } = {}) {
   }
 
   // Composer deps as two-column fields (package | version)
-  const composerDeps = parseComposerDepsAnnotation(
-    firstComposerDepsAnnotation,
-  );
+  const composerDeps = parseComposerDepsAnnotation(firstComposerDepsAnnotation);
   if (composerDeps.length) {
     blocks.push(sectionBlock("*Krokedil composer dependencies*"));
     for (const { pluginSlug, packages } of composerDeps) {
@@ -304,7 +312,6 @@ async function main() {
       plugin_blueprints: ["woocommerce", pluginSlug].filter(Boolean),
       install_woocommerce: true,
       configure_woocommerce_minimal: true,
-      install_wc_beta_tester: true,
       plugin_dev_zip_aws_s3_public_url: AWS_S3_PUBLIC_URL,
     };
 

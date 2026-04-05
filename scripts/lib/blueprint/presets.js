@@ -38,7 +38,10 @@ const PRESET_NAMES = ["full-store", "minimal", "general-e2e"];
  * @param {PresetOptions} opts
  * @returns {Record<string, any>} Blueprint variables ready for BlueprintBuilder.
  */
-function getPresetVariables(presetName, { pluginSlug, repoSlug, pluginName } = {}) {
+function getPresetVariables(
+  presetName,
+  { pluginSlug, repoSlug, pluginName } = {},
+) {
   const blogname = pluginName ? `${pluginName} dev zip` : "Plugin dev zip";
 
   /** Fields added to every preset. */
@@ -61,10 +64,9 @@ function getPresetVariables(presetName, { pluginSlug, repoSlug, pluginName } = {
     case "minimal":
       return {
         ...common,
-        plugin_blueprints: ["woocommerce"],
+        plugin_blueprints: ["woocommerce", repoSlug].filter(Boolean),
         install_woocommerce: true,
         configure_woocommerce_minimal: true,
-        install_wc_beta_tester: true,
         blogname,
       };
 

@@ -65,14 +65,6 @@ function applyKlarnaCheckoutBlueprint(builder) {
         "wp wc payment_gateway update kco --order=1 --user=1 --skip-themes",
     },
   ]);
-
-  // Switch checkout to classic shortcode
-  builder.addSteps(true, [
-    {
-      step: "runPHP",
-      code: "<?php require_once '/wordpress/wp-load.php'; $checkout_page_id = get_option('woocommerce_checkout_page_id'); if ($checkout_page_id) { wp_update_post(['ID' => $checkout_page_id, 'post_content' => '[woocommerce_checkout]']); }",
-    },
-  ]);
 }
 
 module.exports = {
