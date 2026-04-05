@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "playground-dummy",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/playground.js", "dummy"],
+      "port": 9400
+    },
+    {
+      "name": "playground-dummy-fullstore",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/playground.js", "dummy", "--blueprint", "full-store"],
+      "port": 9400
+    },
+    {
+      "name": "playground-dummy-e2e",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/playground.js", "dummy", "--blueprint", "general-e2e"],
+      "port": 9400
+    }
+  ]
+}
