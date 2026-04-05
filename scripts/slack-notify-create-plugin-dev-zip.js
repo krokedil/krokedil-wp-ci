@@ -367,7 +367,12 @@ async function main() {
     blocks.push(dividerBlock());
     blocks.push(
       sectionBlock(
-        `You can test the created dev zip directly in <https://wordpress.org/playground/|WordPress Playground>, which is an experimental project and functionality can be limited, through the link below:\n• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)\n\nAlso remember that the dev zip easily can be deployed to a new or existing InstaWP site through seperate workflows.`,
+        `• <${PLAYGROUND_MINIMAL_URL}|Test dev zip using WordPress Playground> (WP ${wpVersionDisplay}, PHP ${phpVersionDisplay}, WooCommerce and created dev zip)`,
+      ),
+    );
+    blocks.push(
+      sectionBlock(
+        `The dev zip can also be deployed to a new or existing InstaWP site through separate workflows.`,
       ),
     );
   }
