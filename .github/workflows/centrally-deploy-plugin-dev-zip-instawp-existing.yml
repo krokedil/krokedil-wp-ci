@@ -45,6 +45,11 @@ jobs:
       instawp_site_url: ${{ steps.resolve-site.outputs.site_url }}
 
     steps:
+      - name: Checkout CI repo (for local actions)
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 1
+
       - name: Build plugin
         id: build
         uses: ./.github/actions/centrally-build-plugin
