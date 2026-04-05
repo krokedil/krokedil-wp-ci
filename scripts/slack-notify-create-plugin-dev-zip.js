@@ -305,11 +305,9 @@ async function main() {
   // Construct playground URL if preconditions met
   let PLAYGROUND_MINIMAL_URL = "";
   if (AWS_S3_PUBLIC_URL) {
-    const pluginSlug = getOptionalString(META, "slug");
-
     const blueprintVariables = {
       blogname: pluginName ? `${pluginName} dev zip` : "Plugin dev zip",
-      plugin_blueprints: ["woocommerce", pluginSlug].filter(Boolean),
+      plugin_blueprints: ["woocommerce"],
       install_woocommerce: true,
       configure_woocommerce_minimal: true,
       plugin_dev_zip_aws_s3_public_url: AWS_S3_PUBLIC_URL,
