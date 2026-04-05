@@ -112,7 +112,7 @@ export async function buildPlaygroundWorkerContext(): Promise<PlaygroundWorkerCo
     plugin_blueprints: ["woocommerce", pluginSlug],
     reset_wordpress: true,
     install_storefront: true,
-    configure_title_permalinks: true,
+    configure_general_site_options: true,
     install_woocommerce: true,
     install_wc_beta_tester: true,
     activate_plugin_slugs: pluginSlug,

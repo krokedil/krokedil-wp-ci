@@ -30,10 +30,10 @@ test("--check exits 0 when files are in sync", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Validation: unsorted plugins.json should fail
+// Validation: unsorted plugins.json should be accepted (sorted by code)
 // ---------------------------------------------------------------------------
 
-test("rejects unsorted plugins.json", () => {
+test("accepts unsorted plugins.json without error", () => {
   const unsorted = JSON.stringify({
     plugins: [
       {
@@ -47,16 +47,12 @@ test("rejects unsorted plugins.json", () => {
     ],
   });
 
-  assert.throws(
-    () => {
-      execFileSync("node", ["-e", buildInlineScript(unsorted)], {
-        encoding: "utf8",
-        stdio: "pipe",
-      });
-    },
-    { status: 1 },
-    "Should exit 1 for unsorted plugins",
-  );
+  // Should exit 0 — no longer an error.
+  const result = execFileSync("node", ["-e", buildInlineScript(unsorted)], {
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  assert.ok(true, "Should exit 0 for unsorted plugins");
 });
 
 // ---------------------------------------------------------------------------
@@ -129,6 +125,102 @@ test("rejects plugin missing displayName", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Validation: distributionPlatform "wordpress-org" requires slug
+// ---------------------------------------------------------------------------
+
+test("rejects wordpress-org plugin without slug", () => {
+  const invalid = JSON.stringify({
+    plugins: [
+      {
+        displayName: "WP Org Plugin",
+        repository: "org/wp-org-plugin",
+        distributionPlatform: "wordpress-org",
+      },
+    ],
+  });
+
+  assert.throws(
+    () => {
+      execFileSync("node", ["-e", buildInlineScript(invalid)], {
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+    },
+    { status: 1 },
+    "Should exit 1 for wordpress-org plugin without slug",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Validation: downloadUrl requires slug
+// ---------------------------------------------------------------------------
+
+test("rejects downloadUrl plugin without slug", () => {
+  const invalid = JSON.stringify({
+    plugins: [
+      {
+        displayName: "URL Plugin",
+        repository: "org/url-plugin",
+        downloadUrl: "https://example.com/plugin.zip",
+      },
+    ],
+  });
+
+  assert.throws(
+    () => {
+      execFileSync("node", ["-e", buildInlineScript(invalid)], {
+        encoding: "utf8",
+        stdio: "pipe",
+      });
+    },
+    { status: 1 },
+    "Should exit 1 for downloadUrl plugin without slug",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Validation: accepts valid wordpress-org and downloadUrl plugins
+// ---------------------------------------------------------------------------
+
+test("accepts wordpress-org plugin with slug", () => {
+  const valid = JSON.stringify({
+    plugins: [
+      {
+        displayName: "WP Org Plugin",
+        repository: "org/wp-org-plugin",
+        slug: "wp-org-plugin",
+        distributionPlatform: "wordpress-org",
+      },
+    ],
+  });
+
+  execFileSync("node", ["-e", buildInlineScript(valid)], {
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  assert.ok(true, "Should exit 0 for valid wordpress-org plugin");
+});
+
+test("accepts downloadUrl plugin with slug", () => {
+  const valid = JSON.stringify({
+    plugins: [
+      {
+        displayName: "URL Plugin",
+        repository: "org/url-plugin",
+        slug: "url-plugin",
+        downloadUrl: "https://example.com/plugin.zip",
+      },
+    ],
+  });
+
+  execFileSync("node", ["-e", buildInlineScript(valid)], {
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  assert.ok(true, "Should exit 0 for valid downloadUrl plugin");
+});
+
+// ---------------------------------------------------------------------------
 // Helper: build an inline Node script that calls loadPlugins with mock data
 // ---------------------------------------------------------------------------
 
@@ -165,13 +257,12 @@ function buildInlineScript(jsonString) {
         console.error("missing field");
         process.exit(1);
       }
-    }
-
-    const names = plugins.map(p => p.displayName);
-    const sorted = [...names].sort((a, b) => a.localeCompare(b));
-    for (let i = 0; i < names.length; i++) {
-      if (names[i] !== sorted[i]) {
-        console.error("unsorted");
+      if (p.distributionPlatform === "wordpress-org" && !p.slug) {
+        console.error("wordpress-org requires slug");
+        process.exit(1);
+      }
+      if (p.downloadUrl && !p.slug) {
+        console.error("downloadUrl requires slug");
         process.exit(1);
       }
     }

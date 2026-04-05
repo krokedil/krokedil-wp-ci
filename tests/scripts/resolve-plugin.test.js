@@ -93,6 +93,80 @@ test("abbreviation takes priority over slug", () => {
 });
 
 // ---------------------------------------------------------------------------
+// resolvePlugin — slug field matching
+// ---------------------------------------------------------------------------
+
+const PLUGINS_WITH_SLUG = [
+  ...PLUGINS,
+  {
+    displayName: "WP Org Plugin",
+    repository: "org/wp-org-plugin",
+    abbreviation: "wporg",
+    slug: "wp-org-plugin-slug",
+    distributionPlatform: "wordpress-org",
+  },
+  {
+    displayName: "URL Plugin",
+    repository: "org/url-plugin",
+    abbreviation: "urlp",
+    slug: "url-plugin-slug",
+    downloadUrl: "https://example.com/plugin.zip",
+  },
+];
+
+test("resolves wordpress-org plugin by slug field", () => {
+  const result = resolvePlugin("wp-org-plugin-slug", PLUGINS_WITH_SLUG);
+  assert.equal(result.displayName, "WP Org Plugin");
+});
+
+test("resolves url plugin by slug field", () => {
+  const result = resolvePlugin("url-plugin-slug", PLUGINS_WITH_SLUG);
+  assert.equal(result.displayName, "URL Plugin");
+});
+
+test("resolves plugin by slug (case-insensitive)", () => {
+  const result = resolvePlugin("WP-ORG-PLUGIN-SLUG", PLUGINS_WITH_SLUG);
+  assert.equal(result.abbreviation, "wporg");
+});
+
+test("abbreviation takes priority over slug", () => {
+  // A plugin whose abbreviation matches another plugin's slug.
+  const plugins = [
+    {
+      displayName: "First",
+      repository: "org/first",
+      abbreviation: "myplugin",
+    },
+    {
+      displayName: "Second",
+      repository: "org/second",
+      abbreviation: "second",
+      slug: "myplugin",
+    },
+  ];
+  const result = resolvePlugin("myplugin", plugins);
+  assert.equal(result.displayName, "First", "abbreviation match should win over slug");
+});
+
+test("repo slug takes priority over plugin slug", () => {
+  const plugins = [
+    {
+      displayName: "First",
+      repository: "org/shared-name",
+      abbreviation: "first",
+    },
+    {
+      displayName: "Second",
+      repository: "org/other",
+      abbreviation: "second",
+      slug: "shared-name",
+    },
+  ];
+  const result = resolvePlugin("shared-name", plugins);
+  assert.equal(result.displayName, "First", "repo slug match should win over plugin slug");
+});
+
+// ---------------------------------------------------------------------------
 // isPassthrough — unit tests
 // ---------------------------------------------------------------------------
 

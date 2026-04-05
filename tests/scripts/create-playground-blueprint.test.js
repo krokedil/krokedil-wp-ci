@@ -184,12 +184,117 @@ test("Template: plugin_blueprints skips unknown slugs silently", () => {
   assert.ok(builder.blueprint.steps.length === 0 || true, "Should not throw");
 });
 
-test("Template: configure_woocommerce_store adds comprehensive store settings", () => {
+// ---------------------------------------------------------------------------
+// install_extra_plugins tests
+// ---------------------------------------------------------------------------
+
+test("Template: install_extra_plugins installs wordpress.org plugin", () => {
   const builder = new BlueprintBuilder(
-    { plugin_blueprints: ["woocommerce"], configure_woocommerce_store: true },
+    { install_extra_plugins: [{ resource: "wordpress.org/plugins", slug: "test-plugin" }] },
     applyKrokedilBlueprintTemplate,
   );
-  const step = findSetSiteOptionsStep(builder.blueprint.steps, "woocommerce_store_address");
+  const step = findInstallPluginStep(
+    builder.blueprint.steps,
+    (s) => s?.pluginData?.resource === "wordpress.org/plugins" && s?.pluginData?.slug === "test-plugin",
+  );
+  assert.ok(step, "Expected an installPlugin step for wordpress.org plugin");
+  assert.equal(step.options?.activate, true);
+});
+
+test("Template: install_extra_plugins installs plugin from URL", () => {
+  const url = "https://kernl.us/api/v1/updates/download";
+  const builder = new BlueprintBuilder(
+    { install_extra_plugins: [{ resource: "url", url }] },
+    applyKrokedilBlueprintTemplate,
+  );
+  const step = findInstallPluginStep(
+    builder.blueprint.steps,
+    (s) => s?.pluginData?.resource === "url" && s?.pluginData?.url === url,
+  );
+  assert.ok(step, "Expected an installPlugin step for URL plugin");
+  assert.equal(step.options?.activate, true);
+});
+
+test("Template: install_extra_plugins supports multiple plugins", () => {
+  const builder = new BlueprintBuilder(
+    {
+      install_extra_plugins: [
+        { resource: "wordpress.org/plugins", slug: "plugin-a" },
+        { resource: "url", url: "https://example.com/plugin-b.zip" },
+      ],
+    },
+    applyKrokedilBlueprintTemplate,
+  );
+  const stepA = findInstallPluginStep(
+    builder.blueprint.steps,
+    (s) => s?.pluginData?.slug === "plugin-a",
+  );
+  const stepB = findInstallPluginStep(
+    builder.blueprint.steps,
+    (s) => s?.pluginData?.url === "https://example.com/plugin-b.zip",
+  );
+  assert.ok(stepA, "Expected installPlugin step for plugin-a");
+  assert.ok(stepB, "Expected installPlugin step for plugin-b");
+});
+
+test("Template: empty install_extra_plugins adds no steps", () => {
+  const builder = new BlueprintBuilder(
+    { install_extra_plugins: [] },
+    applyKrokedilBlueprintTemplate,
+  );
+  const step = findInstallPluginStep(
+    builder.blueprint.steps,
+    (s) => s?.pluginData?.resource === "wordpress.org/plugins",
+  );
+  assert.equal(step, undefined, "No installPlugin steps expected for empty array");
+});
+
+// ---------------------------------------------------------------------------
+// WooCommerce configuration tests
+// ---------------------------------------------------------------------------
+
+test("Template: configure_woocommerce_minimal adds minimal store settings", () => {
+  const builder = new BlueprintBuilder(
+    { plugin_blueprints: ["woocommerce"], configure_woocommerce_minimal: true },
+    applyKrokedilBlueprintTemplate,
+  );
+  const steps = builder.blueprint.steps;
+
+  // Test product created
+  const productCmd = findWpCliCommand(steps, "wc product create");
+  assert.ok(productCmd, "Expected a wp-cli step creating a test product");
+
+  // Coming soon disabled
+  const comingSoon = findSetSiteOptionsStep(steps, "woocommerce_coming_soon");
+  assert.ok(comingSoon, "Expected coming-soon to be disabled");
+  assert.equal(comingSoon.options.woocommerce_coming_soon, "no");
+
+  // COD payment enabled
+  const cod = findSetSiteOptionsStep(steps, "woocommerce_cod_settings");
+  assert.ok(cod, "Expected COD payment method to be enabled");
+  assert.equal(cod.options.woocommerce_cod_settings.enabled, "yes");
+
+  // Full store settings should NOT be present
+  const storeAddress = findSetSiteOptionsStep(steps, "woocommerce_store_address");
+  assert.equal(storeAddress, undefined, "Minimal config should not include full store address");
+});
+
+test("Template: configure_woocommerce_fully adds comprehensive store settings", () => {
+  const builder = new BlueprintBuilder(
+    { plugin_blueprints: ["woocommerce"], configure_woocommerce_fully: true },
+    applyKrokedilBlueprintTemplate,
+  );
+  const steps = builder.blueprint.steps;
+
+  // Full store address present
+  const step = findSetSiteOptionsStep(steps, "woocommerce_store_address");
   assert.ok(step, "Expected comprehensive WC store config step");
   assert.equal(step.options.woocommerce_store_address, "Test Road 1");
+
+  // Minimal config is implicitly included
+  const productCmd = findWpCliCommand(steps, "wc product create");
+  assert.ok(productCmd, "Expected minimal config (test product) to be included implicitly");
+
+  const cod = findSetSiteOptionsStep(steps, "woocommerce_cod_settings");
+  assert.ok(cod, "Expected COD payment from minimal config to be included implicitly");
 });

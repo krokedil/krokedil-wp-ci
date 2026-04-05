@@ -38,6 +38,7 @@ export default async function globalSetup(_config: FullConfig) {
     applyKrokedilBlueprintTemplate,
     computeSnapshotCacheKey,
     ensureSnapshotExtracted,
+    getPresetVariables,
   } = requireForShared("../../../scripts/lib/blueprint/index.js") as any;
   const { loadMeta, getOptionalString } = requireForShared(
     "../../../scripts/lib/plugin-meta.js",
@@ -53,24 +54,18 @@ export default async function globalSetup(_config: FullConfig) {
   }
 
   const pluginName = getOptionalString(META, "name");
-  const blogname = pluginName ? `${pluginName} dev zip` : "Plugin dev zip";
 
   const pluginAutoMount =
     process.env.E2E_AUTO_MOUNT || `./zipfile/${pluginSlug}`;
 
   // ---------------------------------------------------------------------------
   // Snapshot blueprint (must stay aligned with end-to-end/fixtures.ts)
+  // Uses the "general-e2e" preset from scripts/lib/blueprint/presets.js.
   // ---------------------------------------------------------------------------
-  const snapshotBlueprintVariables: Record<string, any> = {
-    blogname,
-    plugin_blueprints: ["woocommerce", pluginSlug],
-    reset_wordpress: true,
-    install_storefront: true,
-    configure_title_permalinks: true,
-    install_woocommerce: true,
-    install_wc_beta_tester: true,
-    activate_plugin_slugs: pluginSlug,
-  };
+  const snapshotBlueprintVariables: Record<string, any> = getPresetVariables(
+    "general-e2e",
+    { pluginSlug, repoSlug: pluginSlug, pluginName: pluginName || undefined },
+  );
 
   const snapshotBuilder = new BlueprintBuilder(
     snapshotBlueprintVariables,
