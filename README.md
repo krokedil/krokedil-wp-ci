@@ -4,6 +4,16 @@ Reusable GitHub Actions workflows and helper scripts for Krokedil WordPress/WooC
 
 This repository is meant to be checked out inside plugin repositories and used via `uses:` from GitHub Actions. It centralizes common CI tasks like building dev zips, running shared tests, and deploying to InstaWP.
 
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) 20+ (see `.nvmrc`)
+- [Git](https://git-scm.com/)
+- [PHP](https://www.php.net/) 8.2 — some plugins use Composer post-install scripts (e.g. php-scoper) that are not yet compatible with PHP 8.3+. On macOS with Homebrew:
+  ```bash
+  brew install shivammathur/php/php@8.2
+  brew unlink php && brew link php@8.2 --force
+  ```
+
 ## Contents
 
 - Reusable workflows under `.github/workflows/`
@@ -98,6 +108,8 @@ The `scripts/` directory contains the shared shell and Node utilities used by th
 
 These scripts are meant to be invoked from within the reusable workflows, not directly from plugin repos.
 
+- `scripts/playground.js` – starts a local WordPress Playground server with a Krokedil plugin installed. See [Local Playground](#local-playground) below.
+
 ## Managing the centrally-dispatched plugin list
 
 The dropdown of plugins available in the `centrally-*` workflows is maintained in a single file: `.github/plugins.json`.
@@ -143,6 +155,60 @@ Reusable workflow input:
 - Set `with: test_php_versions: "8.2,8.3"` (or `"all"`) when calling `create-plugin-dev-zip.yml` to control the Playwright PHP matrix.
 
 If you see errors like `node: bad option: --test`, you're running an older Node version.
+
+### Local Playground
+
+`scripts/playground.js` starts a WordPress Playground server with a plugin installed. Useful for inspecting pages and authoring `pluginDevZipE2e` assertions in `plugin-meta.json`.
+
+```bash
+# List available plugins (from .github/plugins.json)
+npm run playground -- --list
+
+# Start Playground with a plugin (clones from GitHub automatically)
+npm run playground -- kp
+npm run playground -- kco --branch develop
+
+# Use a specific blueprint preset
+npm run playground -- kp --blueprint minimal
+npm run playground -- kp --blueprint general-e2e
+
+# Use a local plugin directory instead of cloning
+npm run playground -- kp --dir ~/Projects/klarna-payments
+
+# Start Playground + launch Playwright codegen for visual selector discovery
+npm run playground -- kp --codegen
+
+# Use the in-repo dummy fixture plugin
+npm run playground -- dummy
+```
+
+Options:
+
+- `<plugin>` (required) – abbreviation, slug, or display name from `.github/plugins.json`. Use `dummy` for the in-repo fixture.
+- `--blueprint <type>` – blueprint preset to use. Defaults to `full-store`. See below.
+- `--dir <path>` – use an existing local directory instead of cloning from GitHub.
+- `--branch <name>` – clone/checkout a specific branch (ignored when `--dir` is used).
+- `--codegen` – after the server starts, launch `npx playwright codegen` pointed at `/wp-admin/` for interactive selector and assertion authoring.
+
+Blueprint presets (defined in `scripts/lib/blueprint/presets.js`):
+
+| Preset | Description |
+|---|---|
+| `full-store` (default) | Full Swedish WooCommerce store with tax, shipping, address, HPOS, and general site options. Matches InstaWP new site deploys. |
+| `minimal` | Minimal WooCommerce config with beta tester. Matches the job summary playground link. |
+| `general-e2e` | Storefront theme, reset WordPress, general site options, WooCommerce, and beta tester. Matches the shared e2e test suite setup. |
+
+Instead of passing `--dir` every time, you can set a per-plugin env var in `.env`:
+
+```bash
+# In .env (variable name: {ABBREVIATION}_LOCAL_DIR)
+KP_LOCAL_DIR=~/Projects/klarna-payments
+KCO_LOCAL_DIR=~/Projects/klarna-checkout
+```
+
+Then `npm run playground -- kp` will use the local directory automatically. The `--dir` flag takes precedence over the env var. See `.env.example` for all available variables.
+
+If the plugin has a `.github/plugin-meta.json` with a `slug` field, the plugin is activated automatically. Otherwise it is only mounted and must be activated manually from wp-admin.
 
 ## Examples
 
