@@ -41,6 +41,7 @@ export async function buildPlaygroundWorkerContext(): Promise<PlaygroundWorkerCo
     BlueprintBuilder,
     applyKrokedilBlueprintTemplate,
     computeSnapshotCacheKey,
+    getPresetVariables,
   } = requireForShared("../../../../scripts/lib/blueprint/index.js") as any;
   const {
     loadMeta,
@@ -107,16 +108,10 @@ export async function buildPlaygroundWorkerContext(): Promise<PlaygroundWorkerCo
   // - snapshot blueprint: heavier, run once per worker and cached
   // - server blueprint: lighter, run per test against a fresh snapshot copy
 
-  const snapshotBlueprintVariables: Record<string, any> = {
-    blogname,
-    plugin_blueprints: ["woocommerce", pluginSlug],
-    reset_wordpress: true,
-    install_storefront: true,
-    configure_general_site_options: true,
-    install_woocommerce: true,
-    install_wc_beta_tester: true,
-    activate_plugin_slugs: pluginSlug,
-  };
+  const snapshotBlueprintVariables: Record<string, any> = getPresetVariables(
+    "general-e2e",
+    { pluginSlug, repoSlug: pluginSlug, pluginName: pluginName || undefined },
+  );
 
   const snapshotBuilder = new BlueprintBuilder(
     snapshotBlueprintVariables,
