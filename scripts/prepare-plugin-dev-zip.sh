@@ -31,6 +31,11 @@ set -euo pipefail
 # Failure modes:
 #   - Missing PLUGIN_SLUG exits with code 1.
 #   - Missing npm/composer when a build is required exits with code 1.
+#
+# Duplication note:
+#   The build detection + version suffix logic (lines 61–83) is duplicated in
+#   scripts/lib/build-plugin.js (used by playground.js for local dev).
+#   Keep both in sync when changing build step detection rules.
 # ---------------------------------------------------------------------------
 
 # Expect PLUGIN_SLUG from env (set by get-plugin-meta.sh step)

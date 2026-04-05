@@ -6,25 +6,43 @@
 //   Optionally launch Playwright codegen for visual selector/assertion authoring.
 //
 // Usage
-//   node scripts/playground.js <plugin> [--dir <path>] [--branch <name>] [--codegen] [--list]
+//   node scripts/playground.js <plugin> [--blueprint <type>] [--dir <path>] [--clone [--branch <name>]] [--codegen] [--list]
 //
-//   <plugin>    Abbreviation, slug, or display name from .github/plugins.json.
-//               Special value "dummy" uses the in-repo fixture plugin.
-//   --dir       Use an existing local directory instead of cloning from GitHub.
-//   --branch    Branch to clone/checkout (default: repo default branch).
-//   --codegen   After the server starts, launch `npx playwright codegen` against it.
-//   --list      Print available plugins and exit.
+//   <plugin>      Abbreviation, slug, or display name from .github/plugins.json.
+//                 Special value "dummy" uses the in-repo fixture plugin.
+//   --blueprint   Blueprint preset: full-store (default), minimal, general-e2e.
+//                 See scripts/lib/blueprint/presets.js for details.
+//   --dir [path]  Use a local directory. If path is omitted, uses {ABBR}_LOCAL_DIR env var.
+//   --clone       Clone from GitHub repository, build, and auto-mount. Supports --branch.
+//   --branch      Branch to clone/checkout (only with --clone). Default: repo default branch.
+//   --codegen     After the server starts, launch `npx playwright codegen` against it.
+//   --list        Print available plugins and exit.
+//
+// Source resolution priority
+//   1. --dir flag or {ABBREVIATION}_LOCAL_DIR env var → use local directory.
+//   2. --clone flag → clone from repository, build, auto-mount.
+//   3. Plugin has distributionPlatform or downloadUrl → install via blueprint (no clone).
+//   4. Fallback → clone from repository, build, auto-mount (same as --clone).
+//
+// Environment variables
+//   {ABBREVIATION}_LOCAL_DIR — per-plugin local directory override.
+//   When set, acts as a default for --dir (e.g. KP_LOCAL_DIR=~/Projects/klarna-payments).
+//   The --dir flag takes precedence over the env var.
 //
 // Inputs
-//   - .github/plugins.json for plugin registry (abbreviation, repository).
+//   - .github/plugins.json for plugin registry (abbreviation, repository, slug,
+//     distributionPlatform, downloadUrl).
 //   - scripts/lib/blueprint/ for BlueprintBuilder + template.
 //   - Plugin's .github/plugin-meta.json for slug (optional — falls back to repo name).
 //
 // Behavior
 //   1. Resolve the plugin identifier to a plugins.json entry.
-//   2. Obtain the plugin source: --dir path, fixture path, or shallow git clone.
+//   2. Obtain the plugin source based on flags and plugins.json config:
+//      a. --dir / env var: use existing local directory.
+//      b. --clone (or fallback): shallow clone from GitHub, build, auto-mount.
+//      c. Remote download: install via blueprint installPlugin step (no local dir).
 //   3. Build a Playground blueprint with WooCommerce + the plugin's own blueprint.
-//   4. Start the Playground server with the plugin auto-mounted.
+//   4. Start the Playground server (with auto-mount if local dir, without if remote).
 //   5. If --codegen, spawn playwright codegen pointed at /wp-admin/.
 //   6. Wait for SIGINT, then clean up.
 //
@@ -36,11 +54,20 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { execSync, spawn } = require("node:child_process");
 
+// Load .env file from the project root if it exists.
+const envPath = path.resolve(__dirname, "..", ".env");
+if (fs.existsSync(envPath)) {
+  process.loadEnvFile(envPath);
+}
+
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
+  getPresetVariables,
+  PRESET_NAMES,
 } = require("./lib/blueprint/index.js");
 const { loadPlugins, resolvePlugin } = require("./lib/resolve-plugin.js");
+const { buildPlugin, applyDevVersionSuffix } = require("./lib/build-plugin.js");
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -66,11 +93,36 @@ function printList(plugins) {
   const maxAbbr = Math.max(...plugins.map((p) => p.abbreviation.length));
   for (const p of plugins) {
     const slug = p.repository.split("/").pop();
+    const sourceTag = getRemoteDownloadSource(p)
+      ? ` [${p.distributionPlatform === "wordpress-org" ? "wp.org" : "url"}]`
+      : "";
     console.log(
-      `  ${p.abbreviation.padEnd(maxAbbr)}  ${slug}  (${p.displayName})`,
+      `  ${p.abbreviation.padEnd(maxAbbr)}  ${slug}  (${p.displayName})${sourceTag}`,
     );
   }
   console.log(`\n  ${"dummy".padEnd(maxAbbr)}  dummy-plugin-for-repo-tests  (in-repo fixture)\n`);
+}
+
+// ---------------------------------------------------------------------------
+// Remote download source detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Check if a plugin has a remote download source configured.
+ * Returns "wordpress-org" if distributionPlatform is "wordpress-org" and slug is set,
+ * "url" if downloadUrl is set, or null if neither applies.
+ *
+ * @param {object} plugin Plugin entry from plugins.json.
+ * @returns {"wordpress-org" | "url" | null}
+ */
+function getRemoteDownloadSource(plugin) {
+  if (plugin.distributionPlatform === "wordpress-org" && plugin.slug) {
+    return "wordpress-org";
+  }
+  if (plugin.downloadUrl) {
+    return "url";
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +142,7 @@ function resolvePluginSource({ plugin, dirFlag, branchFlag }) {
       console.error(`\nError: Directory does not exist: ${pluginDir}\n`);
       process.exit(1);
     }
-    return { pluginDir, pluginMetaJson: tryReadPluginMeta(pluginDir) };
+    return { pluginDir, pluginMetaJson: tryReadPluginMeta(pluginDir), cloned: false };
   }
 
   // 2. Dummy fixture (no clone needed)
@@ -98,6 +150,7 @@ function resolvePluginSource({ plugin, dirFlag, branchFlag }) {
     return {
       pluginDir: DUMMY_PLUGIN_DIR,
       pluginMetaJson: tryReadPluginMeta(DUMMY_PLUGIN_DIR),
+      cloned: false,
     };
   }
 
@@ -115,7 +168,18 @@ function resolvePluginSource({ plugin, dirFlag, branchFlag }) {
           cwd: cloneDir,
           stdio: "inherit",
         });
-        execSync(`git checkout ${branchFlag}`, {
+
+        // Detach HEAD and discard local changes so we can safely
+        // delete and recreate the branch from the fetched ref
+        execSync("git checkout --detach", { cwd: cloneDir, stdio: "ignore" });
+        execSync("git checkout -- .", { cwd: cloneDir, stdio: "ignore" });
+
+        try {
+          execSync(`git branch -D ${branchFlag}`, { cwd: cloneDir, stdio: "ignore" });
+        } catch {
+          // Branch didn't exist locally — that's fine
+        }
+        execSync(`git checkout -b ${branchFlag} FETCH_HEAD`, {
           cwd: cloneDir,
           stdio: "inherit",
         });
@@ -141,7 +205,7 @@ function resolvePluginSource({ plugin, dirFlag, branchFlag }) {
     );
   }
 
-  return { pluginDir: cloneDir, pluginMetaJson: tryReadPluginMeta(cloneDir) };
+  return { pluginDir: cloneDir, pluginMetaJson: tryReadPluginMeta(cloneDir), cloned: true };
 }
 
 /**
@@ -160,17 +224,9 @@ function tryReadPluginMeta(pluginDir) {
 // Blueprint + server
 // ---------------------------------------------------------------------------
 
-async function startServer({ pluginDir, pluginSlug, repoSlug }) {
+async function startServer({ pluginDir, pluginSlug, blueprintVars }) {
   const outDir = path.join(PLAYGROUND_TMP_DIR, "logs");
   fs.mkdirSync(outDir, { recursive: true });
-
-  const blueprintVars = {
-    plugin_blueprints: ["woocommerce", repoSlug],
-    install_woocommerce: true,
-    install_wc_beta_tester: true,
-    configure_debug_logs: true,
-    ...(pluginSlug ? { activate_plugin_slugs: pluginSlug } : {}),
-  };
 
   const builder = new BlueprintBuilder(
     blueprintVars,
@@ -192,8 +248,12 @@ async function startServer({ pluginDir, pluginSlug, repoSlug }) {
     "server",
     `--mount=${outDir}:/wordpress/wp-content/uploads/krokedil-wp-ci`,
     `--blueprint=${blueprintPath}`,
-    `--auto-mount=${pluginDir}`,
   ];
+
+  // Only mount a local plugin directory when one is provided (not for remote downloads).
+  if (pluginDir) {
+    cliArgs.push(`--mount=${pluginDir}:/wordpress/wp-content/plugins/${pluginSlug}`);
+  }
 
   console.log("\nStarting WordPress Playground server ...\n");
 
@@ -256,14 +316,34 @@ async function main() {
 
   const listFlag = args.includes("--list");
   const codegenFlag = args.includes("--codegen");
+  const cloneFlag = args.includes("--clone");
   const dirIndex = args.indexOf("--dir");
-  const dirFlag = dirIndex !== -1 ? args[dirIndex + 1] : null;
+  // --dir can be bare (no path) to use the env var, or --dir <path> for explicit path.
+  const dirNextArg = dirIndex !== -1 ? args[dirIndex + 1] : undefined;
+  const dirFlag = dirIndex === -1
+    ? null
+    : (dirNextArg && !dirNextArg.startsWith("--") ? dirNextArg : true);
   const branchIndex = args.indexOf("--branch");
   const branchFlag = branchIndex !== -1 ? args[branchIndex + 1] : null;
+  const blueprintIndex = args.indexOf("--blueprint");
+  const blueprintFlag = blueprintIndex !== -1 ? args[blueprintIndex + 1] : null;
+
+  // Validate --blueprint value if provided.
+  if (blueprintFlag && !PRESET_NAMES.includes(blueprintFlag)) {
+    console.error(
+      `\nUnknown blueprint preset: "${blueprintFlag}"\n` +
+        `Valid presets: ${PRESET_NAMES.join(", ")}\n`,
+    );
+    process.exit(1);
+  }
+
+  const blueprintPreset = blueprintFlag || "full-store";
 
   // Positional: first arg that doesn't start with -- and isn't a value for a flag.
+  // Only count --dir's next arg as a flag value when it's an actual path (not bare).
+  const dirValueIndex = dirFlag !== null && dirFlag !== true ? dirIndex : -1;
   const flagValueIndices = new Set(
-    [dirIndex, branchIndex].filter((i) => i !== -1).map((i) => i + 1),
+    [dirValueIndex, branchIndex, blueprintIndex].filter((i) => i !== -1).map((i) => i + 1),
   );
   const positional = args.find(
     (a, i) => !a.startsWith("--") && !flagValueIndices.has(i),
@@ -278,8 +358,9 @@ async function main() {
 
   if (!positional) {
     console.error(
-      "\nUsage: node scripts/playground.js <plugin> [--dir <path>] [--branch <name>] [--codegen]\n" +
-        "       node scripts/playground.js --list\n",
+      "\nUsage: node scripts/playground.js <plugin> [--blueprint <type>] [--dir [path]] [--clone [--branch <name>]] [--codegen]\n" +
+        "       node scripts/playground.js --list\n" +
+        `\nBlueprint presets: ${PRESET_NAMES.join(", ")} (default: full-store)\n`,
     );
     process.exit(1);
   }
@@ -304,30 +385,99 @@ async function main() {
   const repoSlug = plugin.repository.split("/").pop();
   console.log(`\nPlugin: ${plugin.displayName} (${repoSlug})`);
 
-  // Get plugin source
-  const { pluginDir, pluginMetaJson } = resolvePluginSource({
-    plugin,
-    dirFlag,
-    branchFlag,
-  });
+  // ---------------------------------------------------------------------------
+  // Source resolution: --dir > --clone > remote download > env var > fallback clone
+  //
+  // The env var acts as a fallback for local dev convenience but does NOT
+  // override remote download. If the plugin has a remote source and the user
+  // didn't pass --dir or --clone, remote download wins over the env var.
+  // To use a local dir, pass --dir explicitly.
+  // ---------------------------------------------------------------------------
+  const remoteSource = getRemoteDownloadSource(plugin);
+  const envVarName = `${plugin.abbreviation.toUpperCase()}_LOCAL_DIR`;
+  const envVarDir = process.env[envVarName] || null;
 
-  const hasPluginMeta = pluginMetaJson != null;
-  const pluginSlug = (hasPluginMeta && pluginMetaJson.slug) || null;
+  // --dir flag: if passed with a path, use that path. If passed without a path
+  // (bare --dir), look up the env var as a convenience shortcut.
+  let effectiveDirFlag = dirFlag;
+  if (dirFlag === true && envVarDir) {
+    effectiveDirFlag = envVarDir;
+    console.log(`Using ${envVarName}=${effectiveDirFlag}`);
+  } else if (!effectiveDirFlag && !cloneFlag && !remoteSource && envVarDir) {
+    // Env var fallback: only when no flags and no remote source configured.
+    effectiveDirFlag = envVarDir;
+    console.log(`Using ${envVarName}=${effectiveDirFlag}`);
+  }
 
-  console.log(`Source:  ${pluginDir}`);
-  if (pluginSlug) {
+  const useRemoteDownload = !effectiveDirFlag && !cloneFlag && !plugin._isDummy && remoteSource;
+
+  let pluginDir = null;
+  let pluginSlug;
+
+  if (useRemoteDownload) {
+    // Remote download: install via blueprint installPlugin step (no local dir).
+    pluginSlug = plugin.slug || repoSlug;
+
+    console.log(`Source:  ${remoteSource === "wordpress-org" ? "wordpress.org" : plugin.downloadUrl}`);
     console.log(`Slug:    ${pluginSlug}`);
   } else {
-    console.log(
-      `Note:    No .github/plugin-meta.json found — the plugin will not be activated automatically.`,
-    );
+    // Local dir or clone from GitHub.
+    const { pluginDir: resolvedDir, pluginMetaJson, cloned } = resolvePluginSource({
+      plugin,
+      dirFlag: effectiveDirFlag,
+      branchFlag,
+    });
+
+    pluginDir = resolvedDir;
+    const hasPluginMeta = pluginMetaJson != null;
+    pluginSlug = (hasPluginMeta && pluginMetaJson.slug) || repoSlug;
+
+    console.log(`Source:  ${pluginDir}`);
+    if (hasPluginMeta) {
+      console.log(`Slug:    ${pluginSlug}`);
+    } else {
+      console.log(
+        `Note:    No .github/plugin-meta.json found — using repo slug "${pluginSlug}" for activation.`,
+      );
+    }
+
+    // For cloned repos: apply dev version suffix and run build step.
+    // Local dirs are assumed ready as-is.
+    if (cloned) {
+      if (pluginSlug) {
+        applyDevVersionSuffix(pluginDir, pluginSlug);
+      }
+      buildPlugin(pluginDir);
+    }
+  }
+
+  console.log(`Blueprint: ${blueprintPreset}`);
+
+  // Build blueprint variables from the selected preset.
+  const blueprintVars = getPresetVariables(blueprintPreset, {
+    pluginSlug,
+    repoSlug,
+    pluginName: plugin.displayName,
+  });
+
+  // For remote downloads, add installPlugin steps to blueprint variables.
+  if (useRemoteDownload) {
+    if (remoteSource === "wordpress-org") {
+      blueprintVars.install_extra_plugins = [
+        { resource: "wordpress.org/plugins", slug: plugin.slug },
+      ];
+    } else if (remoteSource === "url") {
+      blueprintVars.install_extra_plugins = [
+        { resource: "url", url: plugin.downloadUrl },
+      ];
+    }
   }
 
   // Start server
   const { child: serverProcess, url } = await startServer({
     pluginDir,
     pluginSlug,
-    repoSlug,
+    blueprintVars,
   });
 
   console.log(`\n  Playground running at: ${url}\n`);

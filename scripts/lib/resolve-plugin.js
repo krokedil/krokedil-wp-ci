@@ -27,7 +27,7 @@ const fs = require("node:fs");
 /**
  * Read .github/plugins.json and return the `plugins` array.
  * @param {string} pluginsJsonPath Absolute path to plugins.json.
- * @returns {{ displayName: string, repository: string, abbreviation?: string }[]}
+ * @returns {{ displayName: string, repository: string, abbreviation?: string, slug?: string, distributionPlatform?: string, downloadUrl?: string }[]}
  */
 function loadPlugins(pluginsJsonPath) {
   const raw = fs.readFileSync(pluginsJsonPath, "utf8");
@@ -41,11 +41,11 @@ function loadPlugins(pluginsJsonPath) {
 /**
  * Resolve a user-provided identifier to a plugins.json entry.
  * Matches (case-insensitive) against abbreviation, repo slug (part after /),
- * then display name — in that order.
+ * plugin slug, then display name — in that order.
  *
  * @param {string} identifier  Abbreviation, slug, or display name.
- * @param {{ displayName: string, repository: string, abbreviation?: string }[]} plugins
- * @returns {{ displayName: string, repository: string, abbreviation?: string } | null}
+ * @param {{ displayName: string, repository: string, abbreviation?: string, slug?: string }[]} plugins
+ * @returns {{ displayName: string, repository: string, abbreviation?: string, slug?: string } | null}
  */
 function resolvePlugin(identifier, plugins) {
   const lower = identifier.toLowerCase();
@@ -55,6 +55,9 @@ function resolvePlugin(identifier, plugins) {
     ) ||
     plugins.find(
       (p) => p.repository.split("/").pop().toLowerCase() === lower,
+    ) ||
+    plugins.find(
+      (p) => p.slug && p.slug.toLowerCase() === lower,
     ) ||
     plugins.find((p) => p.displayName.toLowerCase() === lower) ||
     null
