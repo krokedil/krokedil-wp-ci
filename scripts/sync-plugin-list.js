@@ -13,13 +13,13 @@
  *   - .github/plugins.json — array of { displayName, repository } objects.
  *
  * Behaviour:
- *   - Validates that plugins are sorted A-Z by displayName.
+ *   - Sorts plugins A-Z by displayName before generating output.
  *   - Validates no duplicate displayName or repository values.
  *   - Injects "dummy-plugin-for-repo-tests" as the last workflow option.
  *   - Uses marker comments to find replacement regions in target files.
  *
  * Failure modes:
- *   - Exits 1 if plugins.json is missing, malformed, unsorted, or has dupes.
+ *   - Exits 1 if plugins.json is missing, malformed, or has dupes.
  *   - Exits 1 in --check mode if any target file would change.
  *   - Exits 1 if a target file is missing a marker comment pair.
  */
@@ -69,15 +69,17 @@ function loadPlugins() {
       );
       process.exit(1);
     }
-  }
 
-  // Check sorted A-Z by displayName.
-  const names = plugins.map((p) => p.displayName);
-  const sorted = [...names].sort((a, b) => a.localeCompare(b));
-  for (let i = 0; i < names.length; i++) {
-    if (names[i] !== sorted[i]) {
+    // Validate source-specific required fields.
+    if (p.distributionPlatform === "wordpress-org" && !p.slug) {
       console.error(
-        `Error: plugins.json is not sorted A-Z by displayName. "${names[i]}" should come after "${sorted[i]}".`,
+        `Error: plugin with distributionPlatform "wordpress-org" must have "slug". Got: ${JSON.stringify(p)}`,
+      );
+      process.exit(1);
+    }
+    if (p.downloadUrl && !p.slug) {
+      console.error(
+        `Error: plugin with "downloadUrl" must have "slug". Got: ${JSON.stringify(p)}`,
       );
       process.exit(1);
     }
@@ -98,6 +100,9 @@ function loadPlugins() {
     nameSet.add(p.displayName);
     repoSet.add(p.repository);
   }
+
+  // Sort A-Z by displayName so generated workflow options are always ordered.
+  plugins.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   return plugins;
 }
