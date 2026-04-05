@@ -49,14 +49,15 @@ jobs:
       zip_file_name: ${{ steps.build.outputs.zip_file_name }}
       aws_s3_public_url: ${{ steps.upload.outputs.aws_s3_public_url }}
     steps:
-      - name: Checkout CI repo (for local actions)
+      - name: Checkout CI repo
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
+          path: .github/krokedil-wp-ci
           fetch-depth: 1
 
       - name: Build plugin
         id: build
-        uses: ./.github/actions/centrally-build-plugin
+        uses: ./.github/krokedil-wp-ci/.github/actions/centrally-build-plugin
         with:
           plugin_repo: ${{ inputs.plugin_repo }}
           ref: ${{ inputs.ref }}
