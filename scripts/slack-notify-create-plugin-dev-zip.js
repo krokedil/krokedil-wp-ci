@@ -303,6 +303,7 @@ async function main() {
       blogname: pluginName ? `${pluginName} dev zip` : "Plugin dev zip",
       plugin_blueprints: ["woocommerce", pluginSlug].filter(Boolean),
       install_woocommerce: true,
+      configure_woocommerce_minimal: true,
       install_wc_beta_tester: true,
       plugin_dev_zip_aws_s3_public_url: AWS_S3_PUBLIC_URL,
     };

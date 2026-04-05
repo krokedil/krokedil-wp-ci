@@ -45,6 +45,7 @@ const { writeJobSummary, buildPlaywrightSummaryMarkdown } = require("./lib/job-s
 const {
   BlueprintBuilder,
   applyKrokedilBlueprintTemplate,
+  getPresetVariables,
 } = require("./lib/blueprint");
 
 async function main() {
@@ -91,20 +92,19 @@ async function main() {
   if (AWS_S3_PUBLIC_URL) {
     const pluginSlug = getOptionalString(META, "slug");
 
+    // Start from the "minimal" preset, then layer on job-summary-specific vars.
     const blueprintVariables = {
-      blogname: pluginName ? `${pluginName} dev zip` : "Plugin dev zip",
-      plugin_blueprints: ["woocommerce", pluginSlug].filter(Boolean),
-      install_woocommerce: true,
-      install_wc_beta_tester: true,
+      ...getPresetVariables("minimal", {
+        pluginSlug,
+        repoSlug: pluginSlug,
+        pluginName,
+      }),
       plugin_dev_zip_aws_s3_public_url: AWS_S3_PUBLIC_URL,
     };
 
     if (phpVersion) blueprintVariables.php_version = phpVersion;
     if (wpVersion) blueprintVariables.wp_version = wpVersion;
-
-    if (landingPage) {
-      blueprintVariables.landing_page = landingPage;
-    }
+    if (landingPage) blueprintVariables.landing_page = landingPage;
 
     const builder = new BlueprintBuilder(
       blueprintVariables,
