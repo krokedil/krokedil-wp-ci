@@ -57,7 +57,7 @@ function main() {
 
   const blueprintVars = getPresetVariables(
     "full-store",
-    { pluginSlug: slug, repoSlug: slug },
+    { repoSlug: slug },
     { configure_debug_logs: false },
   );
 

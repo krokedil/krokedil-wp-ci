@@ -18,6 +18,15 @@ function applyKlarnaCheckoutBlueprint(builder) {
   const merchantId = process.env.KCO_TEST_MERCHANT_ID_EU || "";
   const sharedSecret = process.env.KCO_TEST_SHARED_SECRET_EU || "";
 
+  // Activate the plugin so WP-CLI commands below can reference its gateway.
+  builder.addSteps(true, [
+    {
+      step: "wp-cli",
+      command:
+        "wp plugin activate klarna-checkout-for-woocommerce --skip-plugins --skip-themes",
+    },
+  ]);
+
   // Set KCO credentials (only if env vars are available)
   builder.addSteps(true, [
     {
