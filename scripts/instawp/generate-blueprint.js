@@ -55,10 +55,11 @@ function main() {
     process.exit(1);
   }
 
-  const blueprintVars = getPresetVariables("full-store", {
-    pluginSlug: slug,
-    repoSlug: slug,
-  });
+  const blueprintVars = getPresetVariables(
+    "full-store",
+    { pluginSlug: slug, repoSlug: slug },
+    { configure_debug_logs: false },
+  );
 
   const builder = new BlueprintBuilder(
     blueprintVars,

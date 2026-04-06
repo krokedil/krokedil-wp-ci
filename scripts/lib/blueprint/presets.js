@@ -36,11 +36,13 @@ const PRESET_NAMES = ["full-store", "minimal", "general-e2e"];
  *
  * @param {string} presetName  One of PRESET_NAMES.
  * @param {PresetOptions} opts
+ * @param {Record<string, any>} [overrides] Optional variable overrides applied last.
  * @returns {Record<string, any>} Blueprint variables ready for BlueprintBuilder.
  */
 function getPresetVariables(
   presetName,
   { pluginSlug, repoSlug, pluginName } = {},
+  overrides = {},
 ) {
   const blogname = pluginName ? `${pluginName} dev zip` : "Plugin dev zip";
 
@@ -50,9 +52,12 @@ function getPresetVariables(
     ...(pluginSlug ? { activate_plugin_slugs: pluginSlug } : {}),
   };
 
+  /** @type {Record<string, any>} */
+  let vars;
+
   switch (presetName) {
     case "full-store":
-      return {
+      vars = {
         ...common,
         plugin_blueprints: ["woocommerce", repoSlug].filter(Boolean),
         install_woocommerce: true,
@@ -60,18 +65,20 @@ function getPresetVariables(
         configure_woocommerce_fully: true,
         blogname: "WooCommerce demoshop",
       };
+      break;
 
     case "minimal":
-      return {
+      vars = {
         ...common,
-        plugin_blueprints: ["woocommerce", repoSlug].filter(Boolean),
+        plugin_blueprints: ["woocommerce"],
         install_woocommerce: true,
         configure_woocommerce_minimal: true,
         blogname,
       };
+      break;
 
     case "general-e2e":
-      return {
+      vars = {
         ...common,
         plugin_blueprints: ["woocommerce"],
         reset_wordpress: true,
@@ -81,6 +88,7 @@ function getPresetVariables(
         install_wc_beta_tester: true,
         blogname,
       };
+      break;
 
     default:
       throw new Error(
@@ -88,6 +96,8 @@ function getPresetVariables(
           `Valid presets: ${PRESET_NAMES.join(", ")}`,
       );
   }
+
+  return { ...vars, ...overrides };
 }
 
 module.exports = { getPresetVariables, PRESET_NAMES };

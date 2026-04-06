@@ -94,11 +94,11 @@ async function main() {
 
     // Start from the "minimal" preset, then layer on job-summary-specific vars.
     const blueprintVariables = {
-      ...getPresetVariables("minimal", {
-        pluginSlug,
-        repoSlug: pluginSlug,
-        pluginName,
-      }),
+      ...getPresetVariables(
+        "minimal",
+        { repoSlug: pluginSlug, pluginName },
+        { configure_debug_logs: false },
+      ),
       plugin_dev_zip_aws_s3_public_url: AWS_S3_PUBLIC_URL,
     };
 
