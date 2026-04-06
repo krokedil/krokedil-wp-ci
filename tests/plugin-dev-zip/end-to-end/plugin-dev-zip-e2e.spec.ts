@@ -59,19 +59,24 @@ test.describe("With WooCommerce", () => {
       });
 
       for (const assertion of metaPage.assertions || []) {
-        const locator = page.locator(assertion.selector);
-        // WooCommerce admin pages may render content via React after initial
-        // page load. Use a longer timeout so Playwright keeps polling while
-        // JS frameworks hydrate and fetch data.
-        await expect(locator).toBeVisible({ timeout: 30_000 });
+        const matchType = assertion.match === "equals" ? "equals" : "contains";
+        const label = `Assert "${assertion.selector}" ${matchType} "${assertion.text ?? "(visible only)"}"`;
 
-        if (typeof assertion.text === "string") {
-          if (assertion.match === "equals") {
-            await expect(locator).toHaveText(assertion.text);
-          } else {
-            await expect(locator).toContainText(assertion.text);
+        await test.step(label, async () => {
+          const locator = page.locator(assertion.selector);
+          // WooCommerce admin pages may render content via React after initial
+          // page load. Use a longer timeout so Playwright keeps polling while
+          // JS frameworks hydrate and fetch data.
+          await expect(locator).toBeVisible({ timeout: 30_000 });
+
+          if (typeof assertion.text === "string") {
+            if (assertion.match === "equals") {
+              await expect(locator).toHaveText(assertion.text);
+            } else {
+              await expect(locator).toContainText(assertion.text);
+            }
           }
-        }
+        });
       }
 
       const metaPng = await page.screenshot({
