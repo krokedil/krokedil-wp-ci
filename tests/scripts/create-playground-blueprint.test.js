@@ -269,10 +269,9 @@ test("Template: configure_woocommerce_minimal adds minimal store settings", () =
   assert.ok(comingSoon, "Expected coming-soon to be disabled");
   assert.equal(comingSoon.options.woocommerce_coming_soon, "no");
 
-  // COD payment enabled
+  // COD payment should NOT be present in minimal (it's in full config)
   const cod = findSetSiteOptionsStep(steps, "woocommerce_cod_settings");
-  assert.ok(cod, "Expected COD payment method to be enabled");
-  assert.equal(cod.options.woocommerce_cod_settings.enabled, "yes");
+  assert.equal(cod, undefined, "COD payment should not be in minimal config");
 
   // Full store settings should NOT be present
   const storeAddress = findSetSiteOptionsStep(steps, "woocommerce_store_address");

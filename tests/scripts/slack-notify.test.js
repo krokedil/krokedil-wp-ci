@@ -118,13 +118,13 @@ test("has dividers after bold section headings", () => {
   }
 });
 
-test("uses bold section text for sub-headings, not header blocks", () => {
+test("omits Playwright section when no report data is available", () => {
   const result = runScript({ ZIP_FILE_NAME: "test-plugin" });
 
   const text = allBlockText(result.blocks);
   assert.ok(
-    text.includes("*Basic dev zip e2e test results*"),
-    "Playwright heading should be bold in a section block",
+    !text.includes("*Basic dev zip e2e test results*"),
+    "Playwright heading should not appear without report data",
   );
 });
 
