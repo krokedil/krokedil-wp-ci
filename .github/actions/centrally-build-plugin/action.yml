@@ -172,7 +172,7 @@ runs:
     - name: Generate plugin zip (WordPress.org)
       id: wporg-build
       if: steps.meta.outputs.distribution_platform == 'wordpress-org'
-      uses: krokedil/action-wordpress-plugin-build-zip@c7e63d9847b9775a3d9f1ff0204ade98016f335d # krokedil-improvements
+      uses: krokedil/action-wordpress-plugin-build-zip@5cbd7ee858afbb1defeabd94a69526b498b8fad9 # krokedil-improvements
       env:
         SLUG: ${{ steps.meta.outputs.plugin_slug }}
       with:
