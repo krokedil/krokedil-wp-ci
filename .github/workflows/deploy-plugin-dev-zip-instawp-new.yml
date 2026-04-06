@@ -111,8 +111,8 @@ jobs:
         env:
           PLUGIN_META_FILE: .github/plugin-meta.json
           BLUEPRINT_OUTPUT_PATH: /tmp/generated-blueprint.json
-          E2E_API_KEY: ${{ secrets.E2E_API_KEY }}
-          E2E_API_SECRET: ${{ secrets.E2E_API_SECRET }}
+          KCO_TEST_MERCHANT_ID_EU: ${{ secrets.KCO_TEST_MERCHANT_ID_EU }}
+          KCO_TEST_SHARED_SECRET_EU: ${{ secrets.KCO_TEST_SHARED_SECRET_EU }}
         run: |
           node .github/krokedil-wp-ci/scripts/instawp/generate-blueprint.js
 
