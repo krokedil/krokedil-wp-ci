@@ -61,6 +61,8 @@ function getPresetVariables(
         ...common,
         plugin_blueprints: ["woocommerce", repoSlug].filter(Boolean),
         install_woocommerce: true,
+        install_storefront: true,
+        configure_storefront: true,
         configure_general_site_options: true,
         configure_woocommerce_fully: true,
         blogname: "WooCommerce demoshop",
