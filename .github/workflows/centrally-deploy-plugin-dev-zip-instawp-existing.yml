@@ -1,0 +1,116 @@
+# Centrally Deploy Plugin Dev Zip to Existing InstaWP Site
+#
+# Deploys a plugin dev zip to an existing InstaWP site.
+# Use this when the plugin repo itself doesn't have InstaWP secrets,
+# or select "dummy-plugin-for-repo-tests" to test the workflow itself.
+#
+# Inputs: plugin repo (dropdown), branch/SHA, existing site URL.
+# Checkout: external plugin at root, CI helpers at .github/krokedil-wp-ci.
+
+name: Centrally Deploy Plugin Dev Zip to Existing InstaWP Site
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+    inputs:
+      plugin_repo:
+        required: true
+        type: choice
+        description: "Plugin repository to deploy (dummy-plugin-for-repo-tests tests the workflow itself)."
+        options:
+          # --- BEGIN GENERATED PLUGIN OPTIONS ---
+          - Budbee for WooCommerce
+          - Klarna Payments for WooCommerce
+          - Kustom Checkout for WooCommerce
+          - Swedbank Pay WooCommerce Payment Menu
+          - dummy-plugin-for-repo-tests
+          # --- END GENERATED PLUGIN OPTIONS ---
+      ref:
+        required: false
+        type: string
+        default: "main"
+        description: "Branch, tag, or commit SHA to check out from the plugin repo. Ignored for dummy-plugin-for-repo-tests."
+      instawp_url:
+        required: true
+        type: string
+        description: "URL of the existing InstaWP site to deploy to (e.g. qliro-sandbox.krokedil.site). Fails if the site is not found."
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      INSTAWP_TOKEN: ${{ secrets.INSTAWP_API_TOKEN }}
+    outputs:
+      instawp_site_id: ${{ steps.resolve-site.outputs.site_id }}
+      instawp_site_url: ${{ steps.resolve-site.outputs.site_url }}
+
+    steps:
+      - name: Checkout CI repo
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          path: .github/krokedil-wp-ci
+          fetch-depth: 1
+
+      - name: Build plugin
+        id: build
+        uses: ./.github/krokedil-wp-ci/.github/actions/centrally-build-plugin
+        with:
+          plugin_repo: ${{ inputs.plugin_repo }}
+          ref: ${{ inputs.ref }}
+          classic_personal_access_token: ${{ secrets.CLASSIC_PERSONAL_ACCESS_TOKEN }}
+
+      - name: Install InstaWP CLI
+        run: npm install -g @instawp/cli@0.0.1-beta.2
+
+      - name: Resolve site ID from URL
+        id: resolve-site
+        env:
+          INSTAWP_URL: ${{ inputs.instawp_url }}
+        run: |
+          # Normalize: strip scheme and trailing slash for case-insensitive matching.
+          NORMALIZED=$(echo "$INSTAWP_URL" | sed 's|^https\?://||' | sed 's|/$||' | tr '[:upper:]' '[:lower:]')
+
+          SITES_JSON=$(instawp sites list --json)
+
+          SITE_ID=$(echo "$SITES_JSON" | jq -r --arg url "$NORMALIZED" '
+            .[]
+            | select((.url | ltrimstr("https://") | ltrimstr("http://") | rtrimstr("/") | ascii_downcase) == $url)
+            | .id
+          ' | head -1)
+
+          SITE_URL=$(echo "$SITES_JSON" | jq -r --arg url "$NORMALIZED" '
+            .[]
+            | select((.url | ltrimstr("https://") | ltrimstr("http://") | rtrimstr("/") | ascii_downcase) == $url)
+            | .url
+          ' | head -1)
+
+          if [ -z "$SITE_ID" ]; then
+            echo "::error::No InstaWP site found matching URL: ${INSTAWP_URL}" >&2
+            exit 1
+          fi
+
+          echo "site_id=${SITE_ID}" >> "$GITHUB_OUTPUT"
+          echo "site_url=${SITE_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload and activate plugin on InstaWP site
+        env:
+          PLUGIN_SLUG: ${{ steps.build.outputs.plugin_slug }}
+          INSTAWP_SITE_ID: ${{ steps.resolve-site.outputs.site_id }}
+        run: |
+          # Arrange plugin files into wp-content structure expected by instawp sync push.
+          mkdir -p wp-content/plugins
+          cp -r "zipfile/${PLUGIN_SLUG}" "wp-content/plugins/${PLUGIN_SLUG}"
+
+          # Sync the plugin directory directly to the site via rsync.
+          instawp sync push "$INSTAWP_SITE_ID"
+
+          # Activate the plugin.
+          instawp wp "$INSTAWP_SITE_ID" plugin activate "$PLUGIN_SLUG"
+
+      - name: Add InstaWP deploy job summary
+        env:
+          INSTAWP_SITE_URL: ${{ steps.resolve-site.outputs.site_url }}
+          INSTAWP_SITE_ID: ${{ steps.resolve-site.outputs.site_id }}
+          INSTAWP_SITE_CREATED: "false"
+        run: |
+          node .github/krokedil-wp-ci/scripts/job-summary-deploy-plugin-dev-zip-instawp.js
