@@ -93,14 +93,14 @@ jobs:
         env:
           PLUGIN_META_FILE: .github/plugin-meta.json
           BLUEPRINT_OUTPUT_PATH: /tmp/generated-blueprint.json
+          KCO_TEST_MERCHANT_ID_EU: ${{ secrets.KCO_TEST_MERCHANT_ID_EU }}
+          KCO_TEST_SHARED_SECRET_EU: ${{ secrets.KCO_TEST_SHARED_SECRET_EU }}
         run: |
           node .github/krokedil-wp-ci/scripts/instawp/generate-blueprint.js
 
       - name: Apply blueprint to InstaWP site
         env:
           INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
-          KCO_TEST_MERCHANT_ID_EU: ${{ secrets.KCO_TEST_MERCHANT_ID_EU }}
-          KCO_TEST_SHARED_SECRET_EU: ${{ secrets.KCO_TEST_SHARED_SECRET_EU }}
         run: |
           BLUEPRINT_B64=$(base64 -w 0 /tmp/generated-blueprint.json)
           SCRIPT_B64=$(base64 -w 0 .github/krokedil-wp-ci/scripts/instawp/apply-blueprint.sh)

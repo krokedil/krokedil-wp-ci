@@ -16,6 +16,10 @@ on:
         required: false
       E2E_API_SECRET:
         required: false
+      KCO_TEST_MERCHANT_ID_EU:
+        required: false
+      KCO_TEST_SHARED_SECRET_EU:
+        required: false
     outputs:
       instawp_site_id:
         description: "InstaWP site ID of the newly created site."
