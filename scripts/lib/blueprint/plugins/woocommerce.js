@@ -72,7 +72,7 @@ function applyWooCommerceBlueprint(builder) {
       {
         step: "wp-cli",
         command:
-          "wp wc product create --name='Simple product' --sku='simple-product' --regular_price='99.99' --virtual=false --downloadable=false --user='admin'",
+          "wp wc product create --name='Simple product' --sku='simple-product' --regular_price='99.99' --virtual=false --downloadable=false --user=1",
       },
       {
         step: "runPHP",
