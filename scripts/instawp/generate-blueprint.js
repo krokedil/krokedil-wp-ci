@@ -66,7 +66,9 @@ function main() {
     applyKrokedilBlueprintTemplate,
   );
 
-  const blueprint = builder.toJSON();
+  const blueprint = builder.toJSON({
+    excludeFields: ["landingPage", "login", "preferredVersions"],
+  });
   const outputDir = path.dirname(outputPath);
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });

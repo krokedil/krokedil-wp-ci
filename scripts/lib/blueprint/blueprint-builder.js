@@ -138,8 +138,20 @@ class BlueprintBuilder {
     return this.generatePlaygroundUrl();
   }
 
-  toJSON() {
-    return this.blueprint;
+  /**
+   * Return the blueprint object, optionally excluding top-level fields.
+   * @param {Object} [options]
+   * @param {string[]} [options.excludeFields] Top-level keys to omit from the output.
+   * @returns {Object}
+   */
+  toJSON({ excludeFields = [] } = {}) {
+    if (excludeFields.length === 0) return this.blueprint;
+
+    const out = {};
+    for (const [key, value] of Object.entries(this.blueprint)) {
+      if (!excludeFields.includes(key)) out[key] = value;
+    }
+    return out;
   }
 
   async saveToFile(fileName = "blueprint.json", dirPath = "./") {
