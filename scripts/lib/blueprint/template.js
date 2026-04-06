@@ -172,12 +172,13 @@ function applyKrokedilBlueprintTemplate(builder) {
   //    Runs after plugin blueprints so dependencies (e.g. WooCommerce) are
   //    available when the plugin is activated.
   // ---------------------------------------------------------------------------
-  builder.addSteps(!!vars.activate_plugin_slugs, [
+  const activatePluginSlugs = (vars.activate_plugin_slugs || "").trim();
+  builder.addSteps(!!activatePluginSlugs, [
     {
       step: "wp-cli",
       command:
         "wp plugin activate " +
-        vars.activate_plugin_slugs +
+        activatePluginSlugs +
         " --skip-plugins --skip-themes",
     },
   ]);

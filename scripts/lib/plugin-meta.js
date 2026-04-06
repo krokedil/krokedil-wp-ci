@@ -4,7 +4,7 @@
 // repeating strict JSON-shape validation across the repo.
 
 function isObject(value) {
-  return !!value && typeof value === "object";
+  return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
 function loadMeta({ requireEnv = true } = {}) {

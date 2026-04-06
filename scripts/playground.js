@@ -155,6 +155,13 @@ function resolvePluginSource({ plugin, dirFlag, branchFlag }) {
   }
 
   // 3. Clone from GitHub
+  if (!/^[a-zA-Z0-9\-_.]+\/[a-zA-Z0-9\-_.]+$/.test(plugin.repository)) {
+    throw new Error(`Invalid repository format: ${plugin.repository}`);
+  }
+  if (branchFlag && !/^[a-zA-Z0-9._/\-]+$/.test(branchFlag)) {
+    throw new Error(`Invalid branch name: ${branchFlag}`);
+  }
+
   const slug = plugin.repository.split("/").pop();
   const cloneDir = path.join(PLAYGROUND_TMP_DIR, slug);
 

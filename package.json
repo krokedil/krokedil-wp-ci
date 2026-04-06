@@ -12,7 +12,7 @@
     "lint": "npm run lint:sh && npm run lint:js",
     "lint:sh": "shellcheck scripts/*.sh scripts/**/*.sh",
     "lint:js": "eslint scripts/",
-    "test:scripts": "node --test tests/scripts",
+    "test:scripts": "node --test tests/scripts/*.test.js",
     "sync:plugins": "node scripts/sync-plugin-list.js",
     "check:plugins": "node scripts/sync-plugin-list.js --check",
     "playground": "node scripts/playground.js"
