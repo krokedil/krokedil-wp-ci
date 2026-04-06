@@ -153,9 +153,24 @@ function applyKrokedilBlueprintTemplate(builder) {
   ]);
 
   // ---------------------------------------------------------------------------
-  // 8. Activate specific plugins by slug
-  //    Runs before plugin blueprints so the plugin is active when its blueprint
-  //    configures settings, payment gateways, etc.
+  // 8. Apply plugin blueprints
+  //    Plugin blueprints are loaded by slug from scripts/lib/blueprint/plugins/.
+  //    The plugin_blueprints variable is an array of slugs to apply.
+  //    Runs before plugin activation so dependencies (e.g. WooCommerce) are
+  //    installed before the caller's plugin is activated.
+  // ---------------------------------------------------------------------------
+  const pluginSlugs = vars.plugin_blueprints || [];
+  for (const slug of pluginSlugs) {
+    const applyFn = loadPluginBlueprint(slug);
+    if (applyFn) {
+      applyFn(builder);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 9. Activate specific plugins by slug
+  //    Runs after plugin blueprints so dependencies (e.g. WooCommerce) are
+  //    available when the plugin is activated.
   // ---------------------------------------------------------------------------
   builder.addSteps(!!vars.activate_plugin_slugs, [
     {
@@ -166,19 +181,6 @@ function applyKrokedilBlueprintTemplate(builder) {
         " --skip-plugins --skip-themes",
     },
   ]);
-
-  // ---------------------------------------------------------------------------
-  // 9. Apply plugin blueprints
-  //    Plugin blueprints are loaded by slug from scripts/lib/blueprint/plugins/.
-  //    The plugin_blueprints variable is an array of slugs to apply.
-  // ---------------------------------------------------------------------------
-  const pluginSlugs = vars.plugin_blueprints || [];
-  for (const slug of pluginSlugs) {
-    const applyFn = loadPluginBlueprint(slug);
-    if (applyFn) {
-      applyFn(builder);
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // 10. Run custom wp cli command
