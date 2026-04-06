@@ -162,8 +162,8 @@ runs:
       env:
         PLUGIN_SLUG: ${{ steps.meta.outputs.plugin_slug }}
         DISTRIBUTION_PLATFORM: ${{ steps.meta.outputs.distribution_platform }}
-        GITHUB_REF_NAME: ${{ steps.resolve-ref.outputs.ref_name }}
-        GITHUB_SHA: ${{ steps.resolve-ref.outputs.sha }}
+        REF_NAME: ${{ steps.resolve-ref.outputs.ref_name }}
+        COMMIT_SHA: ${{ steps.resolve-ref.outputs.sha }}
       run: bash .github/krokedil-wp-ci/scripts/prepare-plugin-dev-zip.sh
 
     # -----------------------------------------------------------------------

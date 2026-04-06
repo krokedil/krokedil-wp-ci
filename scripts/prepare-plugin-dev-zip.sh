@@ -10,7 +10,8 @@ set -euo pipefail
 #   - PLUGIN_SLUG: Plugin slug (required).
 #   - DISTRIBUTION_PLATFORM: Optional platform string (e.g. wordpress-org).
 #   - ZIP_FILE_SUFFIX: Optional suffix (include leading dash yourself).
-#   - GITHUB_REF_NAME/GITHUB_REF, GITHUB_SHA: Used to build the zip name.
+#   - REF_NAME: Branch/tag name (falls back to GITHUB_REF_NAME/GITHUB_REF).
+#   - COMMIT_SHA: Full commit SHA (falls back to GITHUB_SHA).
 #   - GITHUB_OUTPUT: Path to the step output file (required).
 #
 # Outputs (GITHUB_OUTPUT):
@@ -58,9 +59,10 @@ if [[ "$ZIP_FILE_SUFFIX" =~ [^A-Za-z0-9._-] ]]; then
 fi
 
 # Generate zip file name
-BRANCH_NAME="${GITHUB_REF_NAME:-${GITHUB_REF#refs/heads/}}"
+BRANCH_NAME="${REF_NAME:-${GITHUB_REF_NAME:-${GITHUB_REF#refs/heads/}}}"
 BRANCH_SAFE="${BRANCH_NAME//[^A-Za-z0-9._-]/-}"
-SHORT_SHA="${GITHUB_SHA:0:7}"
+SHORT_SHA="${COMMIT_SHA:-${GITHUB_SHA}}"
+SHORT_SHA="${SHORT_SHA:0:7}"
 ZIP_FILE_NAME="${PLUGIN_SLUG}-dev-${BRANCH_SAFE}-${SHORT_SHA}${ZIP_FILE_SUFFIX}"
 
 # Apply dev version suffix to plugin version in main plugin file
