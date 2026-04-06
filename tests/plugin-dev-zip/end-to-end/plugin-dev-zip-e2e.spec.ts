@@ -54,9 +54,7 @@ test.describe("With WooCommerce", () => {
     const baseUrl: string = playground.cliServer.serverUrl;
 
     for (const [index, metaPage] of playground.metaE2EPages.entries()) {
-      await page.goto(new URL(metaPage.url, baseUrl).toString(), {
-        waitUntil: "networkidle",
-      });
+      await page.goto(new URL(metaPage.url, baseUrl).toString());
 
       for (const assertion of metaPage.assertions || []) {
         const matchType = assertion.match === "equals" ? "equals" : "contains";
