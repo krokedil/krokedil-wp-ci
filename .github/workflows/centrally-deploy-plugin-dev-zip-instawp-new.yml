@@ -105,13 +105,6 @@ jobs:
           instawp exec "$INSTAWP_SITE_ID" \
             "printf '%s' '${BLUEPRINT_B64}' | base64 -d > /tmp/generated-blueprint.json && printf '%s' '${SCRIPT_B64}' | base64 -d > /tmp/apply-blueprint.sh && BLUEPRINT_JSON_PATH=/tmp/generated-blueprint.json bash /tmp/apply-blueprint.sh"
 
-      - name: Activate plugin
-        env:
-          PLUGIN_SLUG: ${{ steps.build.outputs.plugin_slug }}
-          INSTAWP_SITE_ID: ${{ steps.create-site.outputs.site_id }}
-        run: |
-          instawp wp "$INSTAWP_SITE_ID" plugin activate "$PLUGIN_SLUG"
-
       - name: Add InstaWP deploy job summary
         env:
           INSTAWP_SITE_URL: ${{ steps.create-site.outputs.site_url }}
